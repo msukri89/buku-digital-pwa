@@ -1,52 +1,387 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Buku Digital PWA</title>
-    
-    <link rel="stylesheet" href="style.css">
-    <link rel="manifest" href="manifest.json">
-    
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/page-flip/dist/js/page-flip.browser.min.js"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>PDF Flip Viewer</title>
+
+  <!-- PDF.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+
+  <!-- Page Flip -->
+  <script src="https://cdn.jsdelivr.net/npm/page-flip/dist/js/page-flip.browser.min.js"></script>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: Arial, sans-serif;
+      background: #f4f4f6;
+    }
+
+    body {
+      position: relative;
+    }
+
+    #area-baca {
+      width: 100vw;
+      height: 100vh;
+      padding: 16px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+    }
+
+    #buku {
+      display: block;
+    }
+
+    .lembaran {
+      background: #ffffff;
+      overflow: hidden;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .lembaran canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      object-fit: contain;
+    }
+
+    #menu {
+      position: fixed;
+      z-index: 1000;
+      left: 50%;
+      bottom: 18px;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 10px;
+      padding: 10px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.75);
+      backdrop-filter: blur(12px);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
+    }
+
+    .tombol,
+    .label-upload {
+      width: 44px;
+      height: 44px;
+      border: none;
+      border-radius: 50%;
+      background: #ffffff;
+      color: #222222;
+      cursor: pointer;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 20px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+      user-select: none;
+    }
+
+    .tombol.aktif {
+      background: #222222;
+      color: #ffffff;
+    }
+
+    #pdf-upload {
+      display: none;
+    }
+
+    #pesan-awal {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 90%;
+      max-width: 420px;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      color: #555555;
+      line-height: 1.5;
+      pointer-events: none;
+    }
+
+    #pesan-awal h1 {
+      margin: 0 0 8px;
+      font-size: 24px;
+      color: #222222;
+    }
+
+    #pesan-awal p {
+      margin: 0;
+      font-size: 15px;
+    }
+
+    @media (orientation: landscape) {
+      #menu {
+        left: 18px;
+        bottom: 50%;
+        transform: translateY(50%);
+        flex-direction: column;
+      }
+
+      #area-baca {
+        padding: 18px 72px 18px 72px;
+      }
+    }
+  </style>
 </head>
+
 <body>
-    
-    <div id="menu-container" class="menu-container">
-        
-        <button id="menu-toggle" class="main-toggle" title="Menu Kontrol">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"></circle><circle cx="12" cy="5" r="1"></circle><circle cx="12" cy="19" r="1"></circle></svg>
-        </button>
 
-        <div id="dock" class="dock collapsed">
-            <label class="icon-btn" title="Pilih File PDF">
-                <input type="file" id="pdf-upload" accept="application/pdf" style="display: none;" />
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
-            </label>
-            
-            <button id="btn-ltr" class="icon-btn" title="Mode Standar">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 16 16 12 12 8"></polyline><line x1="8" y1="12" x2="16" y2="12"></line></svg>
-            </button>
-            
-            <button id="btn-rtl" class="icon-btn" title="Mode Arab">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 8 8 12 12 16"></polyline><line x1="16" y1="12" x2="8" y2="12"></line></svg>
-            </button>
+  <div id="area-baca">
+    <div id="buku"></div>
+  </div>
 
-            <button id="btn-vol" class="icon-btn" title="Suara">
-                <svg id="icon-vol-on" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
-                <svg id="icon-vol-off" style="display:none;" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="23" y1="9" x2="17" y2="15"></line><line x1="17" y1="9" x2="23" y2="15"></line></svg>
-            </button>
-        </div>
-        
-    </div>
+  <div id="pesan-awal">
+    <h1>PDF Flip Viewer</h1>
+    <p>Tekan tombol 📄 untuk memilih file PDF.</p>
+  </div>
 
-    <div class="area-baca" id="area-baca">
-        <div id="buku"></div>
-    </div>
+  <div id="menu">
+    <label class="label-upload" title="Pilih PDF">
+      📄
+      <input type="file" id="pdf-upload" accept="application/pdf" />
+    </label>
 
-    <audio id="suara-kertas" src="https://actions.google.com/sounds/v1/foley/paper_rustle.ogg" preload="auto"></audio>
+    <button id="btn-ltr" class="tombol aktif" title="Mode kiri ke kanan">
+      →
+    </button>
 
-    <script src="app.js"></script>
+    <button id="btn-rtl" class="tombol" title="Mode kanan ke kiri">
+      ←
+    </button>
+
+    <button id="btn-suara" class="tombol aktif" title="Suara">
+      🔊
+    </button>
+  </div>
+
+  <audio
+    id="suara-kertas"
+    src="https://actions.google.com/sounds/v1/foley/paper_rustle.ogg"
+    preload="auto">
+  </audio>
+
+  <script>
+    pdfjsLib.GlobalWorkerOptions.workerSrc =
+      "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js";
+
+    let pageFlip = null;
+    let pdfAktif = null;
+    let modeRTL = false;
+    let suaraAktif = true;
+    let sedangRender = false;
+
+    const bukuDiv = document.getElementById("buku");
+    const uploadInput = document.getElementById("pdf-upload");
+    const pesanAwal = document.getElementById("pesan-awal");
+    const suaraKertas = document.getElementById("suara-kertas");
+
+    const btnLTR = document.getElementById("btn-ltr");
+    const btnRTL = document.getElementById("btn-rtl");
+    const btnSuara = document.getElementById("btn-suara");
+
+    uploadInput.addEventListener("change", async function (event) {
+      const file = event.target.files[0];
+
+      if (!file) return;
+
+      if (file.type !== "application/pdf") {
+        alert("Mohon pilih file berformat PDF.");
+        return;
+      }
+
+      const arrayBuffer = await file.arrayBuffer();
+      const dataPDF = new Uint8Array(arrayBuffer);
+
+      pdfAktif = await pdfjsLib.getDocument(dataPDF).promise;
+
+      await renderBuku();
+    });
+
+    btnLTR.addEventListener("click", async function () {
+      modeRTL = false;
+      updateTombolArah();
+
+      if (pdfAktif) {
+        await renderBuku();
+      }
+    });
+
+    btnRTL.addEventListener("click", async function () {
+      modeRTL = true;
+      updateTombolArah();
+
+      if (pdfAktif) {
+        await renderBuku();
+      }
+    });
+
+    btnSuara.addEventListener("click", function () {
+      suaraAktif = !suaraAktif;
+
+      btnSuara.textContent = suaraAktif ? "🔊" : "🔇";
+      btnSuara.classList.toggle("aktif", suaraAktif);
+    });
+
+    function updateTombolArah() {
+      btnLTR.classList.toggle("aktif", !modeRTL);
+      btnRTL.classList.toggle("aktif", modeRTL);
+    }
+
+    function mainkanSuara() {
+      if (!suaraAktif || !suaraKertas) return;
+
+      suaraKertas.currentTime = 0;
+      suaraKertas.play().catch(function () {
+        // Browser kadang menolak audio sebelum ada interaksi pengguna.
+      });
+    }
+
+    async function renderBuku() {
+      if (!pdfAktif || sedangRender) return;
+
+      sedangRender = true;
+
+      pesanAwal.style.display = "none";
+
+      if (pageFlip) {
+        pageFlip.destroy();
+        pageFlip = null;
+      }
+
+      bukuDiv.innerHTML = "";
+
+      const daftarHalaman = [];
+
+      for (let nomor = 1; nomor <= pdfAktif.numPages; nomor++) {
+        const page = await pdfAktif.getPage(nomor);
+
+        const viewport = page.getViewport({
+          scale: 1.5
+        });
+
+        const wrapper = document.createElement("div");
+        wrapper.className = "lembaran";
+
+        const canvas = document.createElement("canvas");
+        const context = canvas.getContext("2d");
+
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+
+        await page.render({
+          canvasContext: context,
+          viewport: viewport
+        }).promise;
+
+        wrapper.appendChild(canvas);
+        daftarHalaman.push(wrapper);
+      }
+
+      if (modeRTL) {
+        daftarHalaman.reverse();
+      }
+
+      daftarHalaman.forEach(function (halaman) {
+        bukuDiv.appendChild(halaman);
+      });
+
+      const ukuran = hitungUkuranBuku();
+
+      pageFlip = new St.PageFlip(bukuDiv, {
+        width: ukuran.lebarHalaman,
+        height: ukuran.tinggiHalaman,
+
+        size: "fixed",
+
+        showCover: false,
+        usePortrait: true,
+
+        minWidth: 220,
+        maxWidth: 2000,
+        minHeight: 300,
+        maxHeight: 2600,
+
+        drawShadow: true,
+        maxShadowOpacity: 0.12,
+        flippingTime: 650,
+
+        mobileScrollSupport: false,
+        clickEventForward: true
+      });
+
+      pageFlip.loadFromHTML(document.querySelectorAll(".lembaran"));
+
+      pageFlip.on("flip", function () {
+        mainkanSuara();
+      });
+
+      sedangRender = false;
+    }
+
+    function hitungUkuranBuku() {
+      const canvasPertama = bukuDiv.querySelector("canvas");
+
+      const rasioHalaman = canvasPertama
+        ? canvasPertama.height / canvasPertama.width
+        : 1.414;
+
+      const lebarLayar = window.innerWidth;
+      const tinggiLayar = window.innerHeight;
+
+      const landscape = lebarLayar > tinggiLayar;
+
+      let paddingHorizontal = landscape ? 150 : 32;
+      let paddingVertical = 32;
+
+      const lebarAman = lebarLayar - paddingHorizontal;
+      const tinggiAman = tinggiLayar - paddingVertical;
+
+      const jumlahHalamanTerlihat = landscape ? 2 : 1;
+
+      let tinggiHalaman = tinggiAman;
+      let lebarHalaman = tinggiHalaman / rasioHalaman;
+
+      const lebarMaksimalPerHalaman = lebarAman / jumlahHalamanTerlihat;
+
+      if (lebarHalaman > lebarMaksimalPerHalaman) {
+        lebarHalaman = lebarMaksimalPerHalaman;
+        tinggiHalaman = lebarHalaman * rasioHalaman;
+      }
+
+      return {
+        lebarHalaman: Math.floor(lebarHalaman),
+        tinggiHalaman: Math.floor(tinggiHalaman)
+      };
+    }
+
+    let resizeTimer = null;
+
+    window.addEventListener("resize", function () {
+      clearTimeout(resizeTimer);
+
+      resizeTimer = setTimeout(function () {
+        if (pdfAktif) {
+          renderBuku();
+        }
+      }, 300);
+    });
+  </script>
+
 </body>
 </html>
