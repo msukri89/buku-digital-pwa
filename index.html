@@ -5,34 +5,32 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Buku Digital PWA</title>
     
-    <!-- Menghubungkan ke file CSS dan PWA -->
     <link rel="stylesheet" href="style.css">
     <link rel="manifest" href="manifest.json">
     
-    <!-- Mesin Pembaca PDF dari Mozilla -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
-    
-    <!-- Mesin Efek Balik Halaman Buku -->
     <script src="https://cdn.jsdelivr.net/npm/page-flip/dist/js/page-flip.browser.min.js"></script>
 </head>
 <body>
-    <div class="kontrol-atas">
-        <label class="tombol-upload">
-            Pilih File PDF
+    <div id="dock" class="dock">
+        <label class="icon-btn" title="Pilih File PDF">
             <input type="file" id="pdf-upload" accept="application/pdf" style="display: none;" />
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
         </label>
-        <button id="btn-ltr">Mode Standar (Kiri-Kanan)</button>
-        <button id="btn-rtl">Mode Arab (Kanan-Kiri)</button>
+        
+        <button id="btn-ltr" class="icon-btn" title="Mode Standar">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 16 16 12 12 8"></polyline><line x1="8" y1="12" x2="16" y2="12"></line></svg>
+        </button>
+        
+        <button id="btn-rtl" class="icon-btn" title="Mode Arab">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 8 8 12 12 16"></polyline><line x1="16" y1="12" x2="8" y2="12"></line></svg>
+        </button>
     </div>
 
-    <!-- Tempat buku akan ditampilkan -->
     <div class="area-baca" id="area-baca">
-        <div id="buku">
-            <!-- Halaman akan dibuat otomatis oleh app.js -->
-        </div>
+        <div id="buku"></div>
     </div>
 
-    <!-- Efek Suara Kertas -->
     <audio id="suara-kertas" src="https://actions.google.com/sounds/v1/foley/paper_rustle.ogg" preload="auto"></audio>
 
     <script src="app.js"></script>
