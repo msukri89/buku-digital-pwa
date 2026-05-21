@@ -4,28 +4,53 @@ let pageFlip;
 let suaraKertas = document.getElementById('suara-kertas');
 let modeRTL = false; 
 
-// --- LOGIKA AUTO-HIDE DOCK ---
+// --- LOGIKA CERDAS DOCK (AUTO-HIDE TANPA GANGGUAN) ---
 const dock = document.getElementById('dock');
 let timerTenggelam;
 
-function bangunkanDock() {
+function sembunyikanDock() {
+    dock.classList.add('hide');
+}
+
+function bangunkanDock(e) {
+    // Mencegah konflik sentuhan
+    if (e) e.stopPropagation(); 
+    
     dock.classList.remove('hide');
     clearTimeout(timerTenggelam);
-    timerTenggelam = setTimeout(() => {
-        dock.classList.add('hide');
-    }, 3000); 
+    timerTenggelam = setTimeout(sembunyikanDock, 3500); // Sembunyi setelah 3.5 detik
 }
 
-document.addEventListener('click', bangunkanDock);
-document.addEventListener('touchstart', bangunkanDock);
-document.addEventListener('mousemove', bangunkanDock);
-bangunkanDock(); 
+// Dock hanya muncul di awal, sisanya hanya aktif jika area dock didekati/disentuh
+dock.addEventListener('mouseenter', bangunkanDock);
+dock.addEventListener('touchstart', bangunkanDock, {passive: true});
 
-// --- LOGIKA AUDIO ---
+// Jalankan pertama kali saat aplikasi dibuka agar pengguna tahu ada menu
+setTimeout(sembunyikanDock, 4000);
+
+// --- LOGIKA AUDIO (PERBAIKAN COMPATIBILITY HP) ---
 function mainkanSuara() {
-    suaraKertas.currentTime = 0;
-    suaraKertas.play().catch(e => console.log("Menunggu interaksi pengguna"));
+    if (suaraKertas) {
+        suaraKertas.muted = false;
+        suaraKertas.currentTime = 0;
+        // Gunakan interaksi langsung untuk menembus proteksi browser
+        let playPromise = suaraKertas.play();
+        if (playPromise !== undefined) {
+            playPromise.catch(error => {
+                console.log("Browser memblokir audio otomatis: ", error);
+            });
+        }
+    }
 }
+
+// Aktifkan pemicu suara awal saat user berinteraksi dengan tombol upload
+document.getElementById('pdf-upload').addEventListener('click', function() {
+    if (suaraKertas) {
+        suaraKertas.play().then(() => {
+            suaraKertas.pause(); // Pancing browser agar mengizinkan audio berjalan
+        }).catch(e => console.log("Audio siap diaktifkan"));
+    }
+});
 
 // --- LOGIKA UPLOAD ---
 document.getElementById('pdf-upload').addEventListener('change', function(e) {
@@ -43,6 +68,7 @@ document.getElementById('pdf-upload').addEventListener('change', function(e) {
         });
     };
     fileReader.readAsArrayBuffer(file);
+    bangunkanDock();
 });
 
 // --- MESIN PEMBUAT BUKU ---
@@ -83,10 +109,8 @@ async function renderBuku(pdf) {
         daftarHalaman.reverse();
     }
 
-    // Masukkan ke DOM
     daftarHalaman.forEach(hal => bukuDiv.appendChild(hal));
 
-    // Ambil rasio untuk ukuran buku
     let canvasPertama = bukuDiv.querySelector('canvas');
     let rasioAsli = canvasPertama ? (canvasPertama.height / canvasPertama.width) : 1.414;
     
@@ -101,35 +125,36 @@ async function renderBuku(pdf) {
         lebarBuku = tinggiBuku / rasioAsli;
     }
 
-    // INISIALISASI MESIN FLIP (BUG TELAH DIPERBAIKI DI SINI)
     pageFlip = new St.PageFlip(bukuDiv, {
-        width: Math.round(lebarBuku),   // Wajib angka bulat
-        height: Math.round(tinggiBuku), // Wajib angka bulat
-        size: "stretch",                // Wajib menggunakan parameter 'stretch'
+        width: Math.round(lebarBuku),   
+        height: Math.round(tinggiBuku), 
+        size: "stretch",                
         minWidth: 300,
         maxWidth: 1000,
         minHeight: 400,
         maxHeight: 1500,
         showCover: true,
-        usePortrait: true, // Otomatis 1 halaman di layar sempit, 2 halaman di layar lebar
+        usePortrait: true, 
         flippingTime: 800
     });
 
-    // Pemuatan HTML difokuskan hanya pada elemen dalam bukuDiv
     pageFlip.loadFromHTML(bukuDiv.querySelectorAll('.lembaran'));
 
+    // Pemicu suara saat halaman sukses dibalik
     pageFlip.on('flip', (e) => {
         mainkanSuara();
     });
 }
 
 // --- TOMBOL KONTROL ARAH BACA ---
-document.getElementById('btn-ltr').addEventListener('click', () => {
+document.getElementById('btn-ltr').addEventListener('click', (e) => {
     modeRTL = false;
+    bangunkanDock();
 });
 
-document.getElementById('btn-rtl').addEventListener('click', () => {
+document.getElementById('btn-rtl').addEventListener('click', (e) => {
     modeRTL = true;
+    bangunkanDock();
 });
 
 // --- SERVICE WORKER ---
