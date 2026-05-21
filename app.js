@@ -3,52 +3,39 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs
 let pageFlip;
 let suaraKertas = document.getElementById('suara-kertas');
 let modeRTL = false; 
+let suaraAktif = true;
 
-// --- LOGIKA CERDAS DOCK (AUTO-HIDE TANPA GANGGUAN) ---
+// --- LOGIKA MENU TOGGLE ---
 const dock = document.getElementById('dock');
-let timerTenggelam;
+const menuToggle = document.getElementById('menu-toggle');
 
-function sembunyikanDock() {
-    dock.classList.add('hide');
-}
+menuToggle.addEventListener('click', () => {
+    dock.classList.toggle('collapsed');
+});
 
-function bangunkanDock(e) {
-    // Mencegah konflik sentuhan
-    if (e) e.stopPropagation(); 
-    
-    dock.classList.remove('hide');
-    clearTimeout(timerTenggelam);
-    timerTenggelam = setTimeout(sembunyikanDock, 3500); // Sembunyi setelah 3.5 detik
-}
+// --- LOGIKA AUDIO & VOLUME ---
+document.getElementById('btn-vol').addEventListener('click', () => {
+    suaraAktif = !suaraAktif;
+    document.getElementById('icon-vol-on').style.display = suaraAktif ? 'block' : 'none';
+    document.getElementById('icon-vol-off').style.display = suaraAktif ? 'none' : 'block';
+});
 
-// Dock hanya muncul di awal, sisanya hanya aktif jika area dock didekati/disentuh
-dock.addEventListener('mouseenter', bangunkanDock);
-dock.addEventListener('touchstart', bangunkanDock, {passive: true});
-
-// Jalankan pertama kali saat aplikasi dibuka agar pengguna tahu ada menu
-setTimeout(sembunyikanDock, 4000);
-
-// --- LOGIKA AUDIO (PERBAIKAN COMPATIBILITY HP) ---
 function mainkanSuara() {
-    if (suaraKertas) {
+    if (suaraKertas && suaraAktif) {
         suaraKertas.muted = false;
         suaraKertas.currentTime = 0;
-        // Gunakan interaksi langsung untuk menembus proteksi browser
         let playPromise = suaraKertas.play();
         if (playPromise !== undefined) {
-            playPromise.catch(error => {
-                console.log("Browser memblokir audio otomatis: ", error);
-            });
+            playPromise.catch(error => console.log("Menunggu interaksi pengguna"));
         }
     }
 }
 
-// Aktifkan pemicu suara awal saat user berinteraksi dengan tombol upload
 document.getElementById('pdf-upload').addEventListener('click', function() {
-    if (suaraKertas) {
+    if (suaraKertas && suaraAktif) {
         suaraKertas.play().then(() => {
-            suaraKertas.pause(); // Pancing browser agar mengizinkan audio berjalan
-        }).catch(e => console.log("Audio siap diaktifkan"));
+            suaraKertas.pause(); 
+        }).catch(e => console.log("Audio siap"));
     }
 });
 
@@ -68,7 +55,7 @@ document.getElementById('pdf-upload').addEventListener('change', function(e) {
         });
     };
     fileReader.readAsArrayBuffer(file);
-    bangunkanDock();
+    dock.classList.remove('collapsed'); // Buka menu saat file terpilih
 });
 
 // --- MESIN PEMBUAT BUKU ---
@@ -111,53 +98,62 @@ async function renderBuku(pdf) {
 
     daftarHalaman.forEach(hal => bukuDiv.appendChild(hal));
 
+    // KALKULASI DIMENSI DINAMIS AGAR TIDAK TERPOTONG
     let canvasPertama = bukuDiv.querySelector('canvas');
     let rasioAsli = canvasPertama ? (canvasPertama.height / canvasPertama.width) : 1.414;
     
     let lebarLayar = window.innerWidth;
     let tinggiLayar = window.innerHeight;
-    
-    let lebarBuku = lebarLayar * 0.9;
-    let tinggiBuku = lebarBuku * rasioAsli;
-    
-    if(tinggiBuku > tinggiLayar * 0.9) {
-        tinggiBuku = tinggiLayar * 0.9;
-        lebarBuku = tinggiBuku / rasioAsli;
+    let isLandscape = lebarLayar > tinggiLayar;
+    let paddingAtasBawah = 60; // Ruang bernapas
+    let paddingKiriKanan = 60; 
+
+    // Kalkulasi untuk SATU halaman
+    let batasTinggi = tinggiLayar - paddingAtasBawah;
+    let batasLebar = (lebarLayar - paddingKiriKanan) / (isLandscape ? 2 : 1);
+
+    let targetTinggi = batasTinggi;
+    let targetLebar = targetTinggi / rasioAsli;
+
+    // Jika melebar keluar batas, sesuaikan dari lebarnya
+    if (targetLebar > batasLebar) {
+        targetLebar = batasLebar;
+        targetTinggi = targetLebar * rasioAsli;
     }
 
+    // INISIALISASI MESIN FLIP
     pageFlip = new St.PageFlip(bukuDiv, {
-        width: Math.round(lebarBuku),   
-        height: Math.round(tinggiBuku), 
+        width: Math.round(targetLebar),   
+        height: Math.round(targetTinggi), 
         size: "stretch",                
         minWidth: 300,
-        maxWidth: 1000,
+        maxWidth: 1500,
         minHeight: 400,
-        maxHeight: 1500,
+        maxHeight: 2000,
         showCover: true,
-        usePortrait: true, 
+        usePortrait: true,
+        maxShadowOpacity: 0.15, // KOREKSI: Bayangan dibuat sangat tipis agar tidak terlihat silver/metalik
+        drawShadow: true,
         flippingTime: 800
     });
 
     pageFlip.loadFromHTML(bukuDiv.querySelectorAll('.lembaran'));
 
-    // Pemicu suara saat halaman sukses dibalik
     pageFlip.on('flip', (e) => {
         mainkanSuara();
     });
 }
 
-// --- TOMBOL KONTROL ARAH BACA ---
-document.getElementById('btn-ltr').addEventListener('click', (e) => {
-    modeRTL = false;
-    bangunkanDock();
+// --- KONTROL ARAH BACA ---
+document.getElementById('btn-ltr').addEventListener('click', () => modeRTL = false);
+document.getElementById('btn-rtl').addEventListener('click', () => modeRTL = true);
+
+// Render ulang ukuran buku jika HP diputar
+window.addEventListener('resize', () => {
+    // Pengguna harus muat ulang PDF untuk orientasi baru yang sempurna
+    // atau biarkan PageFlip menangani peregangan internalnya
 });
 
-document.getElementById('btn-rtl').addEventListener('click', (e) => {
-    modeRTL = true;
-    bangunkanDock();
-});
-
-// --- SERVICE WORKER ---
 if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js');
 }
