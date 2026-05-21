@@ -6,6 +6,11 @@
 
   <title>PDF Flip Viewer</title>
 
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#f4f4f6" />
+  <link rel="apple-touch-icon" href="icon-192.png" />
+
   <!-- PDF.js -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
 
@@ -70,7 +75,7 @@
       gap: 10px;
       padding: 10px;
       border-radius: 999px;
-      background: rgba(255, 255, 255, 0.75);
+      background: rgba(255, 255, 255, 0.78);
       backdrop-filter: blur(12px);
       box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
     }
@@ -134,7 +139,7 @@
       }
 
       #area-baca {
-        padding: 18px 72px 18px 72px;
+        padding: 18px 72px;
       }
     }
   </style>
@@ -205,12 +210,20 @@
         return;
       }
 
-      const arrayBuffer = await file.arrayBuffer();
-      const dataPDF = new Uint8Array(arrayBuffer);
+      try {
+        pesanAwal.innerHTML = "<h1>Memuat PDF...</h1><p>Mohon tunggu sebentar.</p>";
+        pesanAwal.style.display = "block";
 
-      pdfAktif = await pdfjsLib.getDocument(dataPDF).promise;
+        const arrayBuffer = await file.arrayBuffer();
+        const dataPDF = new Uint8Array(arrayBuffer);
 
-      await renderBuku();
+        pdfAktif = await pdfjsLib.getDocument(dataPDF).promise;
+
+        await renderBuku();
+      } catch (error) {
+        alert("PDF gagal dibuka.");
+        console.error(error);
+      }
     });
 
     btnLTR.addEventListener("click", async function () {
@@ -257,14 +270,13 @@
 
       sedangRender = true;
 
-      pesanAwal.style.display = "none";
-
       if (pageFlip) {
         pageFlip.destroy();
         pageFlip = null;
       }
 
       bukuDiv.innerHTML = "";
+      pesanAwal.style.display = "none";
 
       const daftarHalaman = [];
 
@@ -346,8 +358,8 @@
 
       const landscape = lebarLayar > tinggiLayar;
 
-      let paddingHorizontal = landscape ? 150 : 32;
-      let paddingVertical = 32;
+      const paddingHorizontal = landscape ? 150 : 32;
+      const paddingVertical = 32;
 
       const lebarAman = lebarLayar - paddingHorizontal;
       const tinggiAman = tinggiLayar - paddingVertical;
@@ -381,6 +393,18 @@
         }
       }, 300);
     });
+
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", function () {
+        navigator.serviceWorker.register("sw.js")
+          .then(function () {
+            console.log("Service Worker berhasil aktif.");
+          })
+          .catch(function (error) {
+            console.log("Service Worker gagal:", error);
+          });
+      });
+    }
   </script>
 
 </body>
