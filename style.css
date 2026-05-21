@@ -3,10 +3,20 @@ body {
     display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; -webkit-tap-highlight-color: transparent;
 }
 
-.area-baca { width: 100vw; height: 100vh; display: flex; justify-content: center; align-items: center; padding: 20px; box-sizing: border-box; }
+/* Pastikan area baca tidak memotong konten */
+.area-baca { 
+    width: 100vw; height: 100vh; display: flex; justify-content: center; align-items: center; 
+    overflow: hidden; /* Mencegah scrolling yang tidak perlu */
+}
 
-/* --- MENU KONTROL ELEGAN (TRANSPARAN & BLUR) --- */
-.menu-container { position: fixed; z-index: 100; display: flex; }
+/* Menu Dock - Transparan dan tidak menghalangi */
+.menu-container {
+    background: rgba(255, 255, 255, 0.1); /* Sangat transparan */
+    backdrop-filter: blur(20px);
+    padding: 10px;
+    border-radius: 30px;
+}
+
 
 .main-toggle, .dock { 
     background: rgba(255, 255, 255, 0.25); /* Sangat transparan */
