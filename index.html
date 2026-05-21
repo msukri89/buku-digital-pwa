@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Buku Digital PWA</title>
+    
+    <!-- Menghubungkan ke file CSS dan PWA -->
+    <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
+    
+    <!-- Mesin Pembaca PDF dari Mozilla -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+    
+    <!-- Mesin Efek Balik Halaman Buku -->
+    <script src="https://cdn.jsdelivr.net/npm/page-flip/dist/js/page-flip.browser.min.js"></script>
+</head>
+<body>
+    <div class="kontrol-atas">
+        <label class="tombol-upload">
+            Pilih File PDF
+            <input type="file" id="pdf-upload" accept="application/pdf" style="display: none;" />
+        </label>
+        <button id="btn-ltr">Mode Standar (Kiri-Kanan)</button>
+        <button id="btn-rtl">Mode Arab (Kanan-Kiri)</button>
+    </div>
+
+    <!-- Tempat buku akan ditampilkan -->
+    <div class="area-baca" id="area-baca">
+        <div id="buku">
+            <!-- Halaman akan dibuat otomatis oleh app.js -->
+        </div>
+    </div>
+
+    <!-- Efek Suara Kertas -->
+    <audio id="suara-kertas" src="https://actions.google.com/sounds/v1/foley/paper_rustle.ogg" preload="auto"></audio>
+
+    <script src="app.js"></script>
+</body>
+</html>
