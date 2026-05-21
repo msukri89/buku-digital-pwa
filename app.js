@@ -4,6 +4,25 @@ let pageFlip;
 let suaraKertas = document.getElementById('suara-kertas');
 let modeRTL = false; 
 
+// --- LOGIKA AUTO-HIDE DOCK ---
+const dock = document.getElementById('dock');
+let timerTenggelam;
+
+function bangunkanDock() {
+    dock.classList.remove('hide');
+    clearTimeout(timerTenggelam);
+    timerTenggelam = setTimeout(() => {
+        dock.classList.add('hide');
+    }, 3000); // Otomatis tenggelam setelah 3 detik tidak disentuh
+}
+
+// Mendeteksi sentuhan atau gerakan untuk memunculkan dock
+document.addEventListener('click', bangunkanDock);
+document.addEventListener('touchstart', bangunkanDock);
+document.addEventListener('mousemove', bangunkanDock);
+bangunkanDock(); // Jalankan pertama kali saat aplikasi dibuka
+
+// --- LOGIKA BUKU ---
 function mainkanSuara() {
     suaraKertas.currentTime = 0;
     suaraKertas.play().catch(e => console.log("Menunggu interaksi pengguna"));
@@ -38,6 +57,7 @@ async function renderBuku(pdf) {
     let jumlahHalaman = pdf.numPages;
     let daftarHalaman = [];
 
+    // Looop ekstraksi PDF dibiarkan persis sama karena sudah berjalan optimal
     for (let i = 1; i <= jumlahHalaman; i++) {
         let page = await pdf.getPage(i);
         let viewport = page.getViewport({ scale: 1.5 }); 
@@ -50,7 +70,6 @@ async function renderBuku(pdf) {
         canvas.height = viewport.height;
         canvas.width = viewport.width;
         
-        // Memastikan ukuran PDF pas dengan halaman buku
         canvas.style.width = '100%';
         canvas.style.height = '100%';
         
@@ -66,22 +85,33 @@ async function renderBuku(pdf) {
 
     daftarHalaman.forEach(hal => bukuDiv.appendChild(hal));
 
+    // Menyesuaikan ukuran buku berdasarkan layar
     let canvasPertama = bukuDiv.querySelector('canvas');
-    let lebar = canvasPertama ? canvasPertama.width / 1.5 : 400;
-    let tinggi = canvasPertama ? canvasPertama.height / 1.5 : 600;
+    let rasioAsli = canvasPertama ? (canvasPertama.height / canvasPertama.width) : 1.414;
+    
+    let lebarLayar = window.innerWidth;
+    let tinggiLayar = window.innerHeight;
+    
+    // Penyesuaian agar muat di layar dengan baik
+    let lebarBuku = lebarLayar * 0.9;
+    let tinggiBuku = lebarBuku * rasioAsli;
+    
+    if(tinggiBuku > tinggiLayar * 0.9) {
+        tinggiBuku = tinggiLayar * 0.9;
+        lebarBuku = tinggiBuku / rasioAsli;
+    }
 
-    // KOREKSI DI SINI: Menggunakan St.PageFlip
     pageFlip = new St.PageFlip(bukuDiv, {
-        width: lebar,
-        height: tinggi,
-        size: "fit", // Diubah ke fit agar tidak melar di HP
+        width: lebarBuku,
+        height: tinggiBuku,
+        size: "fit", 
         minWidth: 300,
         maxWidth: 1000,
         minHeight: 400,
         maxHeight: 1500,
         showCover: true,
-        usePortrait: true, // Memaksa 1 halaman saat di HP
-        flippingTime: 700
+        usePortrait: true, // Otomatis 1 halaman di Portrait, 2 halaman di Landscape
+        flippingTime: 800
     });
 
     pageFlip.loadFromHTML(document.querySelectorAll('.lembaran'));
@@ -93,23 +123,12 @@ async function renderBuku(pdf) {
 
 document.getElementById('btn-ltr').addEventListener('click', () => {
     modeRTL = false;
-    alert("Mode Standar aktif. Silakan upload ulang PDF Anda.");
 });
 
 document.getElementById('btn-rtl').addEventListener('click', () => {
     modeRTL = true;
-    alert("Mode Arab aktif. Silakan upload ulang PDF Anda.");
 });
 
 if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js').then(() => {
-        console.log('PWA Siap!');
-    });
-}
-
-// Mengaktifkan Service Worker agar menjadi PWA (Bisa diinstal & Offline)
-if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js').then(() => {
-        console.log('PWA Siap digunakan!');
-    });
+    navigator.serviceWorker.register('sw.js');
 }
