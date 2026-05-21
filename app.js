@@ -4,51 +4,89 @@ let pageFlip;
 let suaraKertas = document.getElementById('suara-kertas');
 let modeRTL = false; 
 let suaraAktif = true;
-let audioUnlocked = false;
-
-// --- TRIK MEMBUKA KUNCI AUDIO DI HP ---
-function bukaKunciAudio() {
-    if (!audioUnlocked && suaraKertas && suaraAktif) {
-        suaraKertas.muted = false;
-        suaraKertas.play().then(() => {
-            suaraKertas.pause();
-            audioUnlocked = true;
-        }).catch(e => console.log("Menunggu"));
-    }
-}
-document.body.addEventListener('touchstart', bukaKunciAudio, { once: true });
-document.body.addEventListener('click', bukaKunciAudio, { once: true });
 
 // --- LOGIKA MENU TOGGLE ---
 const dock = document.getElementById('dock');
-document.getElementById('menu-toggle').addEventListener('click', () => {
+const menuToggle = document.getElementById('menu-toggle');
+
+menuToggle.addEventListener('click', () => {
     dock.classList.toggle('collapsed');
 });
 
-document.getElementById('btn-vol').addEventListener('click', () => {
-    suaraAktif = !suaraAktif;
-    document.getElementById('icon-vol-on').style.display = suaraAktif ? 'block' : 'none';
-    document.getElementById('icon-vol-off').style.display = suaraAktif ? 'none' : 'block';
-});
+// --- LOGIKA AUDIO ---
+// Trik agar browser mengizinkan audio setelah user menekan menu
+function unlockAudio() {
+    if (suaraKertas) {
+        suaraKertas.play().then(() => {
+            suaraKertas.pause();
+            suaraKertas.currentTime = 0;
+        }).catch(e => console.log("Menunggu interaksi"));
+    }
+}
+menuToggle.addEventListener('click', unlockAudio, { once: true });
 
 function mainkanSuara() {
-    if (suaraKertas && suaraAktif && audioUnlocked) {
+    if (suaraKertas && suaraAktif) {
         suaraKertas.currentTime = 0;
         suaraKertas.play().catch(e => console.log("Gagal memutar audio"));
     }
 }
 
-// --- LOGIKA UPLOAD ---
+// --- MESIN PEMBUAT BUKU (DENGAN KALKULASI RASIO AMAN) ---
+async function renderBuku(pdf) {
+    let bukuDiv = document.getElementById('buku');
+    bukuDiv.innerHTML = ''; 
+    if(pageFlip) { pageFlip.destroy(); pageFlip = null; }
+
+    let jumlahHalaman = pdf.numPages;
+    let daftarHalaman = [];
+
+    for (let i = 1; i <= jumlahHalaman; i++) {
+        let page = await pdf.getPage(i);
+        let viewport = page.getViewport({ scale: 2.0 }); 
+        let divHalaman = document.createElement('div');
+        divHalaman.className = 'lembaran';
+        let canvas = document.createElement('canvas');
+        let ctx = canvas.getContext('2d');
+        canvas.height = viewport.height;
+        canvas.width = viewport.width;
+        await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+        divHalaman.appendChild(canvas);
+        daftarHalaman.push(divHalaman);
+    }
+    if (modeRTL) daftarHalaman.reverse();
+    daftarHalaman.forEach(hal => bukuDiv.appendChild(hal));
+
+    // KALKULASI ANTI-POTONG
+    let areaBaca = document.getElementById('area-baca');
+    let h = areaBaca.clientHeight * 0.9; // Ambil 90% tinggi layar
+    let w = areaBaca.clientWidth * 0.9;
+    
+    // PageFlip membutuhkan rasio yang konsisten
+    pageFlip = new St.PageFlip(bukuDiv, {
+        width: Math.floor(w > 800 ? 400 : w/2), // Jika landscape lebar dibagi 2
+        height: Math.floor(h), 
+        size: "stretch", // Memaksa konten menyesuaikan kotak
+        minWidth: 300, maxWidth: 2000,
+        minHeight: 400, maxHeight: 2500,
+        showCover: true, usePortrait: true,
+        maxShadowOpacity: 0.05,
+        flippingTime: 800
+    });
+
+    pageFlip.loadFromHTML(bukuDiv.querySelectorAll('.lembaran'));
+    pageFlip.on('flip', (e) => mainkanSuara());
+}
+
+// Upload & Event Listeners
 document.getElementById('pdf-upload').addEventListener('change', function(e) {
     let file = e.target.files[0];
-    if(file.type !== 'application/pdf') { alert('Mohon pilih file berformat PDF!'); return; }
     let fileReader = new FileReader();
     fileReader.onload = function() {
         let typedarray = new Uint8Array(this.result);
         pdfjsLib.getDocument(typedarray).promise.then(pdf => renderBuku(pdf));
     };
     fileReader.readAsArrayBuffer(file);
-    dock.classList.remove('collapsed'); 
 });
 
 // --- MESIN PEMBUAT BUKU (KALKULASI AMAN ANTI POTONG) ---
