@@ -1,13 +1,13 @@
 body {
     margin: 0;
-    background-color: #f5f5f7; /* Off-white khas Apple */
+    background-color: #f5f5f7;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     display: flex;
     justify-content: center;
     align-items: center;
     height: 100vh;
     overflow: hidden;
-    -webkit-tap-highlight-color: transparent; /* Hilangkan blok biru saat disentuh di HP */
+    -webkit-tap-highlight-color: transparent;
 }
 
 .area-baca {
@@ -18,35 +18,55 @@ body {
     align-items: center;
 }
 
-/* --- DOCK MELAYANG (GLASSMORPHISM) --- */
-.dock {
+/* --- MENU KONTROL (GLASSMORPHISM & ANIMASI) --- */
+.menu-container {
     position: fixed;
-    background: rgba(255, 255, 255, 0.6);
-    backdrop-filter: blur(15px);
-    -webkit-backdrop-filter: blur(15px);
-    border: 1px solid rgba(255, 255, 255, 0.4);
-    border-radius: 25px;
-    padding: 8px 12px;
-    display: flex;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
     z-index: 100;
-    transition: all 0.8s cubic-bezier(0.25, 1, 0.5, 1); /* Sangat smooth */
-    opacity: 1;
-    visibility: visible;
+    display: flex;
+    align-items: center;
 }
 
-.dock.hide {
-    opacity: 0;
-    visibility: hidden;
-    pointer-events: none;
+.main-toggle, .dock {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+}
+
+.main-toggle {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    color: #333;
+    transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+    z-index: 101; /* Selalu di atas dock */
+}
+
+.main-toggle:active {
+    transform: scale(0.9);
+}
+
+.dock {
+    display: flex;
+    padding: 6px;
+    border-radius: 25px;
+    gap: 8px;
+    transition: all 0.5s cubic-bezier(0.32, 0.72, 0, 1); /* Animasi memanjang yang elegan */
+    overflow: hidden;
+    opacity: 1;
 }
 
 .icon-btn {
     background: transparent;
     border: none;
     color: #1d1d1f;
-    width: 44px;
-    height: 44px;
+    width: 40px;
+    height: 40px;
     border-radius: 50%;
     display: flex;
     justify-content: center;
@@ -56,52 +76,66 @@ body {
 }
 
 .icon-btn:hover, .icon-btn:active {
-    background: rgba(0, 0, 0, 0.05);
+    background: rgba(0, 0, 0, 0.08);
 }
 
-/* --- PERLAKUAN PORTRAIT & LANDSCAPE --- */
-
-/* Landscape (Tablet / HP posisi miring) -> Dock di Kiri */
+/* Landscape (Dock di Kiri) */
 @media (orientation: landscape) {
-    .dock {
+    .menu-container {
         left: 20px;
         top: 50%;
         transform: translateY(-50%);
         flex-direction: column;
-        gap: 15px;
+        gap: 12px;
     }
-    .dock.hide {
-        transform: translate(-30px, -50%); /* Tenggelam ke kiri */
+    .dock {
+        flex-direction: column;
+        max-height: 300px;
+    }
+    .dock.collapsed {
+        max-height: 0;
+        padding-top: 0;
+        padding-bottom: 0;
+        border: none;
+        opacity: 0;
+        transform: translateY(-10px);
+        pointer-events: none;
     }
 }
 
-/* Portrait (HP posisi berdiri) -> Dock di Bawah */
+/* Portrait (Dock di Bawah) */
 @media (orientation: portrait) {
-    .dock {
+    .menu-container {
         bottom: 30px;
         left: 50%;
         transform: translateX(-50%);
-        flex-direction: row;
-        gap: 15px;
+        flex-direction: row-reverse; /* Toggle berada di sisi kanan agar mudah ditarik */
+        gap: 12px;
     }
-    .dock.hide {
-        transform: translate(-50%, 30px); /* Tenggelam ke bawah */
+    .dock {
+        flex-direction: row;
+        max-width: 300px;
+    }
+    .dock.collapsed {
+        max-width: 0;
+        padding-left: 0;
+        padding-right: 0;
+        border: none;
+        opacity: 0;
+        transform: translateX(10px);
+        pointer-events: none;
     }
 }
 
 /* --- DESAIN BUKU --- */
-#buku {
-    display: block;
-}
-
+#buku { display: block; margin: 0 auto; }
 .lembaran {
     background-color: #fff;
-    box-shadow: inset 0 0 15px rgba(0,0,0,0.03); /* Bayangan lipatan buku sangat tipis */
+    box-shadow: inset 0 0 10px rgba(0,0,0,0.02);
     overflow: hidden;
 }
-
 canvas {
     width: 100%;
     height: 100%;
-    object-fit: contain; /* Mencegah PDF menjadi melar */
+    object-fit: contain;
 }
