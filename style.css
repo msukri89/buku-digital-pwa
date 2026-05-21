@@ -1,61 +1,107 @@
 body {
     margin: 0;
-    background-color: #e5e5f7;
-    background-image: radial-gradient(#444cf7 0.5px, #e5e5f7 0.5px);
-    background-size: 10px 10px;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f5f5f7; /* Off-white khas Apple */
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     display: flex;
-    flex-direction: column;
+    justify-content: center;
     align-items: center;
     height: 100vh;
     overflow: hidden;
-}
-
-.kontrol-atas {
-    background-color: #ffffff;
-    padding: 15px 20px;
-    width: 100%;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-    display: flex;
-    justify-content: center;
-    gap: 15px;
-    z-index: 10;
-}
-
-button, .tombol-upload {
-    padding: 10px 20px;
-    background-color: #2c3e50;
-    color: white;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    font-weight: bold;
-    transition: 0.3s;
-}
-
-button:hover, .tombol-upload:hover {
-    background-color: #1a252f;
+    -webkit-tap-highlight-color: transparent; /* Hilangkan blok biru saat disentuh di HP */
 }
 
 .area-baca {
-    margin-top: 2vh;
-    width: 90vw;
-    height: 85vh;
+    width: 100vw;
+    height: 100vh;
     display: flex;
     justify-content: center;
     align-items: center;
 }
 
-/* Desain efek lembaran kertas */
+/* --- DOCK MELAYANG (GLASSMORPHISM) --- */
+.dock {
+    position: fixed;
+    background: rgba(255, 255, 255, 0.6);
+    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    border-radius: 25px;
+    padding: 8px 12px;
+    display: flex;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+    z-index: 100;
+    transition: all 0.8s cubic-bezier(0.25, 1, 0.5, 1); /* Sangat smooth */
+    opacity: 1;
+    visibility: visible;
+}
+
+.dock.hide {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+}
+
+.icon-btn {
+    background: transparent;
+    border: none;
+    color: #1d1d1f;
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    transition: background 0.3s ease;
+}
+
+.icon-btn:hover, .icon-btn:active {
+    background: rgba(0, 0, 0, 0.05);
+}
+
+/* --- PERLAKUAN PORTRAIT & LANDSCAPE --- */
+
+/* Landscape (Tablet / HP posisi miring) -> Dock di Kiri */
+@media (orientation: landscape) {
+    .dock {
+        left: 20px;
+        top: 50%;
+        transform: translateY(-50%);
+        flex-direction: column;
+        gap: 15px;
+    }
+    .dock.hide {
+        transform: translate(-30px, -50%); /* Tenggelam ke kiri */
+    }
+}
+
+/* Portrait (HP posisi berdiri) -> Dock di Bawah */
+@media (orientation: portrait) {
+    .dock {
+        bottom: 30px;
+        left: 50%;
+        transform: translateX(-50%);
+        flex-direction: row;
+        gap: 15px;
+    }
+    .dock.hide {
+        transform: translate(-50%, 30px); /* Tenggelam ke bawah */
+    }
+}
+
+/* --- DESAIN BUKU --- */
+#buku {
+    display: block;
+}
+
 .lembaran {
     background-color: #fff;
-    box-shadow: inset 0 0 30px rgba(0,0,0,0.05);
-    border: 1px solid #ddd;
+    box-shadow: inset 0 0 15px rgba(0,0,0,0.03); /* Bayangan lipatan buku sangat tipis */
     overflow: hidden;
 }
 
 canvas {
     width: 100%;
     height: 100%;
+    object-fit: contain; /* Mencegah PDF menjadi melar */
 }
-
