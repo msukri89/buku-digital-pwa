@@ -1,4 +1,4 @@
-const NAMA_CACHE = 'buku-pwa-v1';
+const NAMA_CACHE = 'buku-pwa-v2';
 const fileYangDisimpan = [
     './',
     './index.html',
