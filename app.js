@@ -55,10 +55,10 @@ document.getElementById('pdf-upload').addEventListener('change', function(e) {
         });
     };
     fileReader.readAsArrayBuffer(file);
-    dock.classList.remove('collapsed'); // Buka menu saat file terpilih
+    dock.classList.remove('collapsed'); 
 });
 
-// --- MESIN PEMBUAT BUKU ---
+// --- MESIN PEMBUAT BUKU (KALKULASI FLEKSIBEL ANTI-TERPOTONG) ---
 async function renderBuku(pdf) {
     let bukuDiv = document.getElementById('buku');
     bukuDiv.innerHTML = ''; 
@@ -71,6 +71,7 @@ async function renderBuku(pdf) {
     let jumlahHalaman = pdf.numPages;
     let daftarHalaman = [];
 
+    // Gunakan resolusi tinggi untuk render awal
     for (let i = 1; i <= jumlahHalaman; i++) {
         let page = await pdf.getPage(i);
         let viewport = page.getViewport({ scale: 1.5 }); 
@@ -82,9 +83,6 @@ async function renderBuku(pdf) {
         let ctx = canvas.getContext('2d');
         canvas.height = viewport.height;
         canvas.width = viewport.width;
-        
-        canvas.style.width = '100%';
-        canvas.style.height = '100%';
         
         await page.render({ canvasContext: ctx, viewport: viewport }).promise;
         
@@ -98,43 +96,52 @@ async function renderBuku(pdf) {
 
     daftarHalaman.forEach(hal => bukuDiv.appendChild(hal));
 
-    // KALKULASI DIMENSI DINAMIS AGAR TIDAK TERPOTONG
+    // MENGHITUNG DIMENSI RUANG BACA SECARA AKURAT
     let canvasPertama = bukuDiv.querySelector('canvas');
-    let rasioAsli = canvasPertama ? (canvasPertama.height / canvasPertama.width) : 1.414;
+    let rasioHalaman = canvasPertama ? (canvasPertama.width / canvasPertama.height) : 0.707; // W / H
     
-    let lebarLayar = window.innerWidth;
-    let tinggiLayar = window.innerHeight;
-    let isLandscape = lebarLayar > tinggiLayar;
-    let paddingAtasBawah = 60; // Ruang bernapas
-    let paddingKiriKanan = 60; 
+    let areaBaca = document.getElementById('area-baca');
+    let lebarTersedia = areaBaca.clientWidth;
+    let tinggiTersedia = areaBaca.clientHeight;
+    let isLandscape = lebarTersedia > tinggiTersedia;
 
-    // Kalkulasi untuk SATU halaman
-    let batasTinggi = tinggiLayar - paddingAtasBawah;
-    let batasLebar = (lebarLayar - paddingKiriKanan) / (isLandscape ? 2 : 1);
+    // Memberikan margin aman agar tidak menempel ke pinggir layar
+    let lebarAman = lebarTersedia - (isLandscape ? 100 : 40);
+    let tinggiAman = tinggiTersedia - 60;
 
-    let targetTinggi = batasTinggi;
-    let targetLebar = targetTinggi / rasioAsli;
+    // Kalkulasi ukuran per 1 halaman
+    let targetTinggi = tinggiAman;
+    let targetLebar = targetTinggi * rasioHalaman;
 
-    // Jika melebar keluar batas, sesuaikan dari lebarnya
-    if (targetLebar > batasLebar) {
-        targetLebar = batasLebar;
-        targetTinggi = targetLebar * rasioAsli;
+    // Validasi jika terlalu lebar
+    if (isLandscape) {
+        // Landscape menampilkan 2 halaman bersebelahan
+        if ((targetLebar * 2) > lebarAman) {
+            targetLebar = lebarAman / 2;
+            targetTinggi = targetLebar / rasioHalaman;
+        }
+    } else {
+        // Portrait menampilkan 1 halaman
+        if (targetLebar > lebarAman) {
+            targetLebar = lebarAman;
+            targetTinggi = targetLebar / rasioHalaman;
+        }
     }
 
-    // INISIALISASI MESIN FLIP
+    // INISIALISASI MESIN DENGAN UKURAN PASTI (FIXED) AGAR TIDAK TERPOTONG
     pageFlip = new St.PageFlip(bukuDiv, {
-        width: Math.round(targetLebar),   
-        height: Math.round(targetTinggi), 
-        size: "stretch",                
+        width: Math.floor(targetLebar),   
+        height: Math.floor(targetTinggi), 
+        size: "fixed", // Wajib FIXED agar ukuran terkunci di batas aman layar
         minWidth: 300,
         maxWidth: 1500,
         minHeight: 400,
         maxHeight: 2000,
         showCover: true,
         usePortrait: true,
-        maxShadowOpacity: 0.15, // KOREKSI: Bayangan dibuat sangat tipis agar tidak terlihat silver/metalik
+        maxShadowOpacity: 0.05, // Bayangan sangat tipis, tidak silver
         drawShadow: true,
-        flippingTime: 800
+        flippingTime: 850 // Animasi buka buku yang lebih elegan
     });
 
     pageFlip.loadFromHTML(bukuDiv.querySelectorAll('.lembaran'));
@@ -147,12 +154,6 @@ async function renderBuku(pdf) {
 // --- KONTROL ARAH BACA ---
 document.getElementById('btn-ltr').addEventListener('click', () => modeRTL = false);
 document.getElementById('btn-rtl').addEventListener('click', () => modeRTL = true);
-
-// Render ulang ukuran buku jika HP diputar
-window.addEventListener('resize', () => {
-    // Pengguna harus muat ulang PDF untuk orientasi baru yang sempurna
-    // atau biarkan PageFlip menangani peregangan internalnya
-});
 
 if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js');
