@@ -13,21 +13,21 @@ function bangunkanDock() {
     clearTimeout(timerTenggelam);
     timerTenggelam = setTimeout(() => {
         dock.classList.add('hide');
-    }, 3000); // Otomatis tenggelam setelah 3 detik tidak disentuh
+    }, 3000); 
 }
 
-// Mendeteksi sentuhan atau gerakan untuk memunculkan dock
 document.addEventListener('click', bangunkanDock);
 document.addEventListener('touchstart', bangunkanDock);
 document.addEventListener('mousemove', bangunkanDock);
-bangunkanDock(); // Jalankan pertama kali saat aplikasi dibuka
+bangunkanDock(); 
 
-// --- LOGIKA BUKU ---
+// --- LOGIKA AUDIO ---
 function mainkanSuara() {
     suaraKertas.currentTime = 0;
     suaraKertas.play().catch(e => console.log("Menunggu interaksi pengguna"));
 }
 
+// --- LOGIKA UPLOAD ---
 document.getElementById('pdf-upload').addEventListener('change', function(e) {
     let file = e.target.files[0];
     if(file.type !== 'application/pdf') {
@@ -45,6 +45,7 @@ document.getElementById('pdf-upload').addEventListener('change', function(e) {
     fileReader.readAsArrayBuffer(file);
 });
 
+// --- MESIN PEMBUAT BUKU ---
 async function renderBuku(pdf) {
     let bukuDiv = document.getElementById('buku');
     bukuDiv.innerHTML = ''; 
@@ -57,7 +58,6 @@ async function renderBuku(pdf) {
     let jumlahHalaman = pdf.numPages;
     let daftarHalaman = [];
 
-    // Looop ekstraksi PDF dibiarkan persis sama karena sudah berjalan optimal
     for (let i = 1; i <= jumlahHalaman; i++) {
         let page = await pdf.getPage(i);
         let viewport = page.getViewport({ scale: 1.5 }); 
@@ -83,16 +83,16 @@ async function renderBuku(pdf) {
         daftarHalaman.reverse();
     }
 
+    // Masukkan ke DOM
     daftarHalaman.forEach(hal => bukuDiv.appendChild(hal));
 
-    // Menyesuaikan ukuran buku berdasarkan layar
+    // Ambil rasio untuk ukuran buku
     let canvasPertama = bukuDiv.querySelector('canvas');
     let rasioAsli = canvasPertama ? (canvasPertama.height / canvasPertama.width) : 1.414;
     
     let lebarLayar = window.innerWidth;
     let tinggiLayar = window.innerHeight;
     
-    // Penyesuaian agar muat di layar dengan baik
     let lebarBuku = lebarLayar * 0.9;
     let tinggiBuku = lebarBuku * rasioAsli;
     
@@ -101,26 +101,29 @@ async function renderBuku(pdf) {
         lebarBuku = tinggiBuku / rasioAsli;
     }
 
+    // INISIALISASI MESIN FLIP (BUG TELAH DIPERBAIKI DI SINI)
     pageFlip = new St.PageFlip(bukuDiv, {
-        width: lebarBuku,
-        height: tinggiBuku,
-        size: "fit", 
+        width: Math.round(lebarBuku),   // Wajib angka bulat
+        height: Math.round(tinggiBuku), // Wajib angka bulat
+        size: "stretch",                // Wajib menggunakan parameter 'stretch'
         minWidth: 300,
         maxWidth: 1000,
         minHeight: 400,
         maxHeight: 1500,
         showCover: true,
-        usePortrait: true, // Otomatis 1 halaman di Portrait, 2 halaman di Landscape
+        usePortrait: true, // Otomatis 1 halaman di layar sempit, 2 halaman di layar lebar
         flippingTime: 800
     });
 
-    pageFlip.loadFromHTML(document.querySelectorAll('.lembaran'));
+    // Pemuatan HTML difokuskan hanya pada elemen dalam bukuDiv
+    pageFlip.loadFromHTML(bukuDiv.querySelectorAll('.lembaran'));
 
     pageFlip.on('flip', (e) => {
         mainkanSuara();
     });
 }
 
+// --- TOMBOL KONTROL ARAH BACA ---
 document.getElementById('btn-ltr').addEventListener('click', () => {
     modeRTL = false;
 });
@@ -129,6 +132,7 @@ document.getElementById('btn-rtl').addEventListener('click', () => {
     modeRTL = true;
 });
 
+// --- SERVICE WORKER ---
 if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('sw.js');
 }
