@@ -265,6 +265,7 @@
         let audioUnlocked = false;
         let modeHalaman = window.innerWidth > window.innerHeight ? 2 : 1; 
         let namaFileAktif = ""; 
+        let sessionLoadAktif = 0; // KUNCI ANTI-TABRAKAN BUKU
 
         // --- MESIN DATABASE OFFLINE (IndexedDB) ---
         const dbName = "DigiPusDB";
@@ -387,9 +388,26 @@
             }
         }
 
+        // --- FUNGSI RESET ANTI-MACET (DIPERBARUI 100% BULLETPROOF) ---
         function clearBookData() {
-            if(pageFlip) { pageFlip.destroy(); pageFlip = null; }
-            document.getElementById('buku').innerHTML = '';
+            // Putuskan sesi pemuatan buku sebelumnya jika belum selesai
+            sessionLoadAktif++; 
+            
+            if (pageFlip) {
+                try { 
+                    pageFlip.destroy(); 
+                } catch (e) { 
+                    console.warn("Abaikan pesan peringatan PageFlip"); 
+                }
+                pageFlip = null; 
+            }
+            
+            // Ganti wadah HTML secara menyeluruh agar tidak ada elemen nyangkut
+            let container = document.getElementById('book-container');
+            if (container) {
+                container.innerHTML = '<div id="buku"></div>';
+            }
+            
             globalCanvases = [];
             namaFileAktif = "";
         }
@@ -449,8 +467,12 @@
             }
         }
 
-        // --- FUNGSI LOAD BUKU (KEBAL OFFLINE) ---
+        // --- FUNGSI LOAD BUKU (KEBAL OFFLINE & ANTI TABRAKAN SESI) ---
         async function bukaBukuDariURL(url_pdf, judul) {
+            // Amankan sesi agar tidak tertabrak buku lain
+            sessionLoadAktif++;
+            let sesiSekarang = sessionLoadAktif;
+
             loaderText.innerText = "Menganalisis " + judul + "...";
             loader.classList.remove('hide');
             zoomSlider.value = 1; zoomWrapper.style.transform = `scale(1)`;
@@ -460,17 +482,18 @@
             namaFileAktif = judul; 
 
             try {
-                // Cek DB Lokal dulu
                 let pdfData = await ambilDariDatabase(url_pdf);
                 
                 if (!pdfData) {
+                    if (sesiSekarang !== sessionLoadAktif) return; // Batal jika user klik buku lain
                     loaderText.innerText = "Mengunduh file (Perlu Internet)...";
                     let response = await fetch(url_pdf);
                     if (!response.ok) throw new Error("Gagal mengunduh file");
                     pdfData = await response.arrayBuffer();
-                    await simpanKeDatabase(url_pdf, pdfData); // Simpan Permanen
+                    await simpanKeDatabase(url_pdf, pdfData); 
                 }
 
+                if (sesiSekarang !== sessionLoadAktif) return;
                 loaderText.innerText = "Merangkai Halaman...";
                 
                 let loadingTask = pdfjsLib.getDocument(new Uint8Array(pdfData));
@@ -478,6 +501,7 @@
                 
                 let jumlahHalaman = pdf.numPages;
                 for (let i = 1; i <= jumlahHalaman; i++) {
+                    if (sesiSekarang !== sessionLoadAktif) return; // Batal jika user ganti pikiran
                     let page = await pdf.getPage(i);
                     let viewport = page.getViewport({ scale: 2.0 }); 
                     let canvas = document.createElement('canvas');
@@ -488,6 +512,7 @@
                     globalCanvases.push(canvas);
                 }
                 
+                if (sesiSekarang !== sessionLoadAktif) return;
                 loader.classList.add('hide'); 
                 dock.classList.remove('collapsed');
                 initFlipbook();
@@ -495,9 +520,11 @@
 
             } catch (err) {
                 console.error(err);
-                alert("Gagal memuat buku. Pastikan internet aktif untuk unduhan pertama kali.");
-                loader.classList.add('hide');
-                window.history.back(); 
+                if (sesiSekarang === sessionLoadAktif) {
+                    alert("Gagal memuat buku. Pastikan internet aktif untuk unduhan pertama kali.");
+                    loader.classList.add('hide');
+                    window.history.back(); 
+                }
             }
         }
 
@@ -506,7 +533,10 @@
             let file = e.target.files[0];
             if(!file) return;
             
-            loaderText.innerText = "Memproses Dokumen...";
+            sessionLoadAktif++;
+            let sesiSekarang = sessionLoadAktif;
+
+            loaderText.innerText = "Menganalisis Dokumen...";
             loader.classList.remove('hide'); 
             zoomSlider.value = 1; zoomWrapper.style.transform = `scale(1)`;
             
@@ -515,10 +545,12 @@
             
             let fileReader = new FileReader();
             fileReader.onload = function() {
+                if (sesiSekarang !== sessionLoadAktif) return;
                 let typedarray = new Uint8Array(this.result);
                 pdfjsLib.getDocument(typedarray).promise.then(async pdf => {
                     let jumlahHalaman = pdf.numPages;
                     for (let i = 1; i <= jumlahHalaman; i++) {
+                        if (sesiSekarang !== sessionLoadAktif) return;
                         let page = await pdf.getPage(i);
                         let viewport = page.getViewport({ scale: 2.0 }); 
                         let canvas = document.createElement('canvas');
@@ -527,6 +559,7 @@
                         await page.render({ canvasContext: ctx, viewport: viewport }).promise;
                         globalCanvases.push(canvas);
                     }
+                    if (sesiSekarang !== sessionLoadAktif) return;
                     loader.classList.add('hide'); 
                     dock.classList.remove('collapsed');
                     initFlipbook();
