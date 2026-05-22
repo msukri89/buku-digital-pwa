@@ -36,25 +36,40 @@
         @keyframes spin { to { transform: rotate(360deg); } }
         .loader-text { font-size: 14px; font-weight: 500; color: #1d1d1f; letter-spacing: 0.5px; }
 
-        /* --- RAK BUKU (LIBRARY VIEW) --- */
-        .library-view {
-            position: absolute; top: 0; left: 0; width: 100vw; height: 100vh;
-            padding: 50px 20px; overflow-y: auto; display: flex; align-content: flex-start; justify-content: center;
-            flex-wrap: wrap; gap: 25px; background: #f5f5f7; z-index: 50; transition: opacity 0.5s ease;
+        /* --- TOMBOL HEADER (PERPUSTAKAAN) --- */
+        .top-header {
+            position: fixed; top: 25px; left: 50%; transform: translateX(-50%); z-index: 110;
         }
-        .library-view.hide { opacity: 0; pointer-events: none; z-index: -1; }
-        
-        .header-title {
-            width: 100%; text-align: center; font-size: 28px; font-weight: bold; color: #1d1d1f;
-            margin-bottom: 30px; letter-spacing: 1px;
+        .btn-perpustakaan {
+            padding: 12px 35px; font-size: 18px; font-weight: 700; color: #1d1d1f; letter-spacing: 0.5px;
+            background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);
+            border: 1px solid rgba(255, 255, 255, 0.8); border-radius: 50px; /* Tumpul kanan kiri */
+            box-shadow: 0 8px 25px rgba(0,0,0,0.08); cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .btn-perpustakaan:active { transform: scale(0.92); box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+
+        /* --- LACI RAK BUKU (LIBRARY DRAWER) --- */
+        .library-view {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+            padding: 95px 20px 50px; overflow-y: auto; display: flex; align-content: flex-start; justify-content: center;
+            flex-wrap: wrap; gap: 25px; 
+            background: rgba(245, 245, 247, 0.85); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+            z-index: 90; /* Berada di atas area baca */
+            /* Animasi Membal (Spring) Ala iOS */
+            transition: transform 0.7s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.5s ease;
+            transform: translateY(0) scale(1); opacity: 1;
+        }
+        /* Saat Laci disembunyikan (ditarik ke atas) */
+        .library-view.hide { 
+            transform: translateY(-100%) scale(0.95); opacity: 0; pointer-events: none; 
         }
 
         .book-card {
-            width: 140px; border-radius: 12px; background: rgba(255, 255, 255, 0.6);
-            backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.8);
+            width: 140px; border-radius: 12px; background: rgba(255, 255, 255, 0.9);
             box-shadow: 0 10px 20px rgba(0,0,0,0.06); cursor: pointer;
             transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.3s ease;
-            display: flex; flex-direction: column; overflow: hidden;
+            display: flex; flex-direction: column; overflow: hidden; border: 1px solid rgba(200,200,200,0.3);
         }
         .book-card:hover { transform: translateY(-8px) scale(1.02); box-shadow: 0 15px 30px rgba(0,0,0,0.1); }
         .book-cover { width: 100%; height: 190px; object-fit: cover; background: #eaeaea; }
@@ -63,13 +78,12 @@
             white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
         }
 
-        /* --- AREA BACA --- */
+        /* --- AREA BACA (TERLETAK DI BAWAH LACI) --- */
         .area-baca { 
             position: absolute; top: 0; left: 0; width: 100vw; height: 100vh; 
             display: flex; justify-content: center; align-items: center; overflow: auto; 
-            transition: opacity 0.5s ease; opacity: 1; z-index: 10;
+            z-index: 10;
         }
-        .area-baca.hide { opacity: 0; pointer-events: none; z-index: -1; }
         #zoom-wrapper { transition: transform 0.2s ease-out; transform-origin: center center; }
         #book-container { display: flex; justify-content: center; align-items: center; }
         #buku { display: block; margin: 0 auto; transition: width 0.3s ease, height 0.3s ease; }
@@ -81,19 +95,21 @@
             position: fixed; z-index: 100; display: flex; padding: 8px; 
             background: rgba(255, 255, 255, 0.25); backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); 
             border: 1px solid rgba(255, 255, 255, 0.4); border-radius: 30px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
-            transition: opacity 0.5s ease;
+            transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.4s ease;
+            transform: translateY(0); opacity: 1;
         }
-        .menu-container.hide { opacity: 0; pointer-events: none; }
+        .menu-container.hide { transform: translateY(100px); opacity: 0; pointer-events: none; }
 
         .main-toggle { 
             width: 38px; height: 38px; border-radius: 50%; border: none; 
-            background: rgba(255, 255, 255, 0.6); color: #1d1d1f; cursor: pointer; display: flex; justify-content: center; align-items: center;
+            background: rgba(255, 255, 255, 0.8); color: #1d1d1f; cursor: pointer; display: flex; justify-content: center; align-items: center;
             transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), background 0.3s ease; z-index: 101;
         }
-        .main-toggle:active { transform: scale(0.85); background: rgba(255, 255, 255, 0.9); }
+        .main-toggle:active { transform: scale(0.85); background: #fff; }
         .main-toggle svg { width: 18px; height: 18px; }
 
         .dock { display: flex; gap: 8px; opacity: 1; transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1); overflow: visible; }
+        .dock.collapsed { max-width: 0; opacity: 0; padding: 0; pointer-events: none; }
         .icon-btn { 
             border: none; background: transparent; color: #444; cursor: pointer; width: 34px; height: 34px; 
             border-radius: 50%; display: flex; justify-content: center; align-items: center;
@@ -104,6 +120,474 @@
         .icon-btn.aktif { background: rgba(0, 0, 0, 0.1); color: #000; }
 
         /* --- POPUP CONTAINER --- */
+        .popup-container {
+            position: absolute; background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.5); border-radius: 20px; padding: 8px 15px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1); transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            opacity: 0; pointer-events: none; transform: scale(0.8); display: flex; align-items: center; z-index: 99; gap: 8px;
+        }
+        .popup-container.show { opacity: 1; pointer-events: auto; transform: scale(1); }
+        .divider { width: 1px; height: 20px; background: rgba(0,0,0,0.15); margin: 0 2px; }
+        .popup-btn { border: none; background: transparent; color: #444; cursor: pointer; width: 30px; height: 30px; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-size: 14px; font-weight: bold; transition: all 0.2s ease; }
+        .popup-btn:hover { background: rgba(0,0,0,0.05); }
+        .popup-btn.aktif { background: #1d1d1f; color: #fff; }
+        .popup-btn svg { width: 16px; height: 16px; }
+
+        input[type=range] { -webkit-appearance: none; width: 130px; background: transparent; margin: 0; }
+        input[type=range]:focus { outline: none; }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 22px; width: 22px; border-radius: 50%; background: #ffffff; box-shadow: 0 2px 5px rgba(0,0,0,0.2), 0 0 1px rgba(0,0,0,0.5); cursor: pointer; margin-top: -9px; }
+        input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; cursor: pointer; background: rgba(0,0,0,0.15); border-radius: 2px; }
+
+        @media (orientation: landscape) {
+            .menu-container { top: 20px; left: 20px; flex-direction: column; align-items: center; bottom: auto; transform: none; }
+            .menu-container.hide { transform: translateX(-100px); }
+            .dock { flex-direction: column; padding-top: 8px; transform-origin: top center; }
+            .dock.collapsed { max-height: 0; max-width: 100%; opacity: 0; padding-top: 0; transform: translateY(-15px) scale(0.8); }
+            .popup-container { left: 65px; top: 50%; transform: translateY(-50%) scale(0.8); }
+            .popup-container.show { transform: translateY(-50%) scale(1); }
+        }
+        @media (orientation: portrait) {
+            .menu-container { bottom: 25px; left: 50%; transform: translateX(-50%); flex-direction: row-reverse; align-items: center; }
+            .menu-container.hide { transform: translate(-50%, 100px); }
+            .dock { flex-direction: row; padding-right: 8px; transform-origin: right center; }
+            .dock.collapsed { max-width: 0; opacity: 0; padding-right: 0; transform: translateX(15px) scale(0.8); }
+            .popup-container { bottom: 60px; left: 50%; transform: translateX(-50%) scale(0.8); }
+            .popup-container.show { transform: translateX(-50%) scale(1); }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="loader" class="loader-overlay hide">
+        <div class="spinner"></div>
+        <div class="loader-text" id="loader-text">Memproses Dokumen...</div>
+    </div>
+
+    <div class="top-header">
+        <button id="btn-toggle-library" class="btn-perpustakaan">Perpustakaan</button>
+    </div>
+
+    <div id="library-view" class="library-view">
+        </div>
+
+    <div id="menu-container" class="menu-container hide">
+        <button id="menu-toggle" class="main-toggle" title="Menu">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"></circle><circle cx="12" cy="5" r="1"></circle><circle cx="12" cy="19" r="1"></circle></svg>
+        </button>
+
+        <div id="dock" class="dock collapsed">
+            <button id="btn-home" class="icon-btn" title="Kembali ke Laci Buku">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+            </button>
+            <div class="divider" style="height: 18px; margin: auto 2px;"></div>
+
+            <label class="icon-btn" title="Upload Manual">
+                <input type="file" id="pdf-upload" accept="application/pdf" style="display: none;" />
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+            </label>
+
+            <button id="btn-page-mode" class="icon-btn" title="Mode Halaman">
+                <svg id="icon-page-1" style="display:none;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5" y="3" width="14" height="18" rx="2"></rect><text x="12" y="16" font-size="11" text-anchor="middle" font-weight="bold" font-family="sans-serif" stroke="none" fill="currentColor">1</text></svg>
+                <svg id="icon-page-2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 4h16v16H4z"></path><line x1="12" y1="4" x2="12" y2="20"></line><text x="12" y="16" font-size="11" text-anchor="middle" font-weight="bold" font-family="sans-serif" stroke="none" fill="currentColor">2</text></svg>
+            </button>
+
+            <button id="btn-zoom" class="icon-btn" title="Sesuaikan Ukuran">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line><line x1="11" y1="8" x2="11" y2="14"></line><line x1="8" y1="11" x2="14" y2="11"></line></svg>
+            </button>
+            
+            <button id="btn-ltr" class="icon-btn aktif" title="Kiri ke Kanan">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 16 16 12 12 8"></polyline><line x1="8" y1="12" x2="16" y2="12"></line></svg>
+            </button>
+            
+            <button id="btn-rtl" class="icon-btn" title="Kanan ke Kiri (Arab)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 8 8 12 12 16"></polyline><line x1="16" y1="12" x2="8" y2="12"></line></svg>
+            </button>
+
+            <button id="btn-vol" class="icon-btn" title="Pengaturan Suara">
+                <svg id="main-vol-on" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
+                <svg id="main-vol-off" style="display:none;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="23" y1="9" x2="17" y2="15"></line><line x1="17" y1="9" x2="23" y2="15"></line></svg>
+            </button>
+        </div>
+
+        <div id="zoom-slider-container" class="popup-container">
+            <input type="range" id="zoom-slider" min="0.5" max="2.5" step="0.05" value="1">
+        </div>
+
+        <div id="sound-popup-container" class="popup-container">
+            <button id="btn-mute" class="popup-btn" title="Mute/Unmute">
+                <svg id="icon-mute-off" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
+                <svg id="icon-mute-on" style="display:none;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="23" y1="9" x2="17" y2="15"></line><line x1="17" y1="9" x2="23" y2="15"></line></svg>
+            </button>
+            <div class="divider"></div>
+            <button class="popup-btn sound-select aktif" data-src="suara1.mp3">1</button>
+            <button class="popup-btn sound-select" data-src="suara2.mp3">2</button>
+            <button class="popup-btn sound-select" data-src="suara3.mp3">3</button>
+            <button class="popup-btn sound-select" data-src="suara4.mp3">4</button>
+        </div>
+    </div>
+
+    <div class="area-baca" id="area-baca">
+        <div id="zoom-wrapper">
+            <div id="book-container">
+                <div id="buku"></div>
+            </div>
+        </div>
+    </div>
+
+    <audio id="suara-kertas" src="suara1.mp3" preload="auto"></audio>
+
+    <script>
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+
+        // GANTI URL INI DENGAN URL WEB APP GOOGLE SCRIPT ANDA
+        const URL_GAS = "https://script.google.com/macros/s/AKfycbz2YB2RrXHxf8xMTXIpHn92L2Hm1VNNQ4jyVObahUaZUOLj_Tj3A7AyiY4dwiED4KWJXA/exec"; 
+
+        let pageFlip;
+        let suaraKertas = document.getElementById('suara-kertas');
+        let globalCanvases = []; 
+        let modeRTL = false; 
+        let suaraAktif = true;
+        let audioUnlocked = false;
+        let modeHalaman = window.innerWidth > window.innerHeight ? 2 : 1; 
+        let namaFileAktif = ""; 
+
+        document.getElementById('icon-page-1').style.display = modeHalaman === 1 ? 'block' : 'none';
+        document.getElementById('icon-page-2').style.display = modeHalaman === 2 ? 'block' : 'none';
+
+        const libraryView = document.getElementById('library-view');
+        const menuContainer = document.getElementById('menu-container');
+        const loader = document.getElementById('loader');
+        const loaderText = document.getElementById('loader-text');
+
+        // --- MANAJEMEN NAVIGASI & HISTORY (TOMBOL BACK FISIK) ---
+        // Mencatat histori awal (halaman laci rak)
+        window.history.replaceState({ screen: 'rak' }, "");
+
+        window.addEventListener('popstate', (e) => {
+            // Jika pengguna menekan back dan rak sedang tertutup (berarti sedang baca buku)
+            if (libraryView.classList.contains('hide')) {
+                tampilkanLaci();
+            }
+        });
+
+        // --- SISTEM LACI (DRAWER) ---
+        document.getElementById('btn-toggle-library').addEventListener('click', () => {
+            if (libraryView.classList.contains('hide')) {
+                tampilkanLaci();
+            } else {
+                // Jika laci terbuka dan ada buku di bawahnya, sembunyikan laci.
+                if (globalCanvases.length > 0) {
+                    sembunyikanLaci();
+                } else {
+                    // Animasi getar jika belum ada buku yang di-load
+                    let btn = document.getElementById('btn-toggle-library');
+                    btn.style.transform = "translateX(-5px)";
+                    setTimeout(() => btn.style.transform = "translateX(5px)", 100);
+                    setTimeout(() => btn.style.transform = "translateX(-50%)", 200);
+                }
+            }
+        });
+
+        document.getElementById('btn-home').addEventListener('click', () => {
+            window.history.back(); // Memicu fungsi popstate di atas
+        });
+
+        // Logika Inti Tampil/Sembunyi
+        function tampilkanLaci() {
+            libraryView.classList.remove('hide');
+            menuContainer.classList.add('hide'); // Menu sembunyi saat laci ditarik
+            closeAllPopups();
+        }
+
+        function sembunyikanLaci() {
+            libraryView.classList.add('hide');
+            menuContainer.classList.remove('hide'); // Menu muncul ke permukaan
+            
+            // Catat history bahwa user sedang masuk ke layar buku
+            window.history.pushState({ screen: 'buku' }, "");
+        }
+
+        // --- TARIK DATA BUKU ---
+        async function fetchLibrary() {
+            if (URL_GAS === "URL_GAS_ANDA_DISINI") return; 
+            
+            try {
+                let response = await fetch(URL_GAS);
+                let books = await response.json();
+                
+                books.forEach(book => {
+                    if(!book.judul) return; 
+                    
+                    let card = document.createElement('div');
+                    card.className = 'book-card';
+                    card.innerHTML = `
+                        <img src="${book.cover}" class="book-cover" alt="Cover" onerror="this.src='https://via.placeholder.com/150x200?text=No+Cover'">
+                        <div class="book-title">${book.judul}</div>
+                    `;
+                    
+                    card.addEventListener('click', () => {
+                        bukaBukuDariURL(book.file, book.judul);
+                    });
+                    
+                    libraryView.appendChild(card);
+                });
+            } catch (error) {
+                console.log("Gagal memuat rak buku: ", error);
+            }
+        }
+
+        // --- FUNGSI LOAD BUKU ---
+        function bukaBukuDariURL(url_pdf, judul) {
+            namaFileAktif = judul; 
+            loaderText.innerText = "Mengunduh " + judul + "...";
+            loader.classList.remove('hide');
+            zoomSlider.value = 1;
+            zoomWrapper.style.transform = `scale(1)`;
+
+            // Hancurkan buku lama jika memilih buku baru
+            if(pageFlip) { pageFlip.destroy(); pageFlip = null; }
+            document.getElementById('buku').innerHTML = '';
+            globalCanvases = [];
+
+            let loadingTask = pdfjsLib.getDocument(url_pdf);
+            loadingTask.promise.then(async pdf => {
+                loaderText.innerText = "Memproses Dokumen...";
+                let jumlahHalaman = pdf.numPages;
+                for (let i = 1; i <= jumlahHalaman; i++) {
+                    let page = await pdf.getPage(i);
+                    let viewport = page.getViewport({ scale: 2.0 }); 
+                    let canvas = document.createElement('canvas');
+                    let ctx = canvas.getContext('2d');
+                    canvas.height = viewport.height;
+                    canvas.width = viewport.width;
+                    await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+                    globalCanvases.push(canvas);
+                }
+                loader.classList.add('hide'); 
+                dock.classList.remove('collapsed');
+                initFlipbook();
+                
+                // Setelah selesai di-render, laci otomatis ditarik (disembunyikan)
+                sembunyikanLaci();
+            }).catch(err => {
+                alert("Gagal memuat PDF. Pastikan file tersedia di repository.");
+                loader.classList.add('hide');
+            });
+        }
+
+        // UPLOAD MANUAL
+        document.getElementById('pdf-upload').addEventListener('change', function(e) {
+            let file = e.target.files[0];
+            if(!file) return;
+            
+            namaFileAktif = file.name; 
+            loaderText.innerText = "Memproses Dokumen...";
+            loader.classList.remove('hide'); 
+            zoomSlider.value = 1;
+            zoomWrapper.style.transform = `scale(1)`;
+            
+            if(pageFlip) { pageFlip.destroy(); pageFlip = null; }
+            document.getElementById('buku').innerHTML = '';
+            globalCanvases = [];
+            
+            let fileReader = new FileReader();
+            fileReader.onload = function() {
+                let typedarray = new Uint8Array(this.result);
+                pdfjsLib.getDocument(typedarray).promise.then(async pdf => {
+                    let jumlahHalaman = pdf.numPages;
+                    for (let i = 1; i <= jumlahHalaman; i++) {
+                        let page = await pdf.getPage(i);
+                        let viewport = page.getViewport({ scale: 2.0 }); 
+                        let canvas = document.createElement('canvas');
+                        let ctx = canvas.getContext('2d');
+                        canvas.height = viewport.height;
+                        canvas.width = viewport.width;
+                        await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+                        globalCanvases.push(canvas);
+                    }
+                    loader.classList.add('hide'); 
+                    dock.classList.remove('collapsed');
+                    initFlipbook();
+                    sembunyikanLaci(); // Tarik laci otomatis
+                });
+            };
+            fileReader.readAsArrayBuffer(file);
+            this.value = ''; 
+        });
+
+        // --- INTERAKSI MENU UI ---
+        const dock = document.getElementById('dock');
+        const menuToggle = document.getElementById('menu-toggle');
+        const zoomPopup = document.getElementById('zoom-slider-container');
+        const soundPopup = document.getElementById('sound-popup-container');
+        const zoomSlider = document.getElementById('zoom-slider');
+        const zoomWrapper = document.getElementById('zoom-wrapper');
+        const bookContainer = document.getElementById('book-container');
+
+        function closeAllPopups() {
+            zoomPopup.classList.remove('show');
+            soundPopup.classList.remove('show');
+        }
+
+        menuToggle.addEventListener('click', () => {
+            dock.classList.toggle('collapsed');
+            if (dock.classList.contains('collapsed')) closeAllPopups(); 
+        });
+
+        document.getElementById('btn-zoom').addEventListener('click', (e) => {
+            soundPopup.classList.remove('show');
+            zoomPopup.classList.toggle('show');
+            e.stopPropagation();
+        });
+
+        document.getElementById('btn-vol').addEventListener('click', (e) => {
+            zoomPopup.classList.remove('show');
+            soundPopup.classList.toggle('show');
+            e.stopPropagation();
+        });
+
+        zoomSlider.addEventListener('input', (e) => zoomWrapper.style.transform = `scale(${e.target.value})`);
+        document.getElementById('area-baca').addEventListener('touchstart', closeAllPopups, {passive: true});
+        document.getElementById('area-baca').addEventListener('click', closeAllPopups);
+
+        // --- LOGIKA AUDIO ---
+        function unlockAudio() {
+            if (!audioUnlocked && suaraKertas) {
+                suaraKertas.play().then(() => {
+                    suaraKertas.pause();
+                    suaraKertas.currentTime = 0;
+                    audioUnlocked = true;
+                }).catch(e => console.log("Menunggu sentuhan user"));
+            }
+        }
+        document.body.addEventListener('click', unlockAudio, { once: true });
+        document.body.addEventListener('touchstart', unlockAudio, { once: true });
+
+        function mainkanSuara() {
+            if (suaraKertas && suaraAktif && audioUnlocked) {
+                suaraKertas.currentTime = 0;
+                suaraKertas.play().catch(e => console.log("Audio diblokir"));
+            }
+        }
+
+        document.getElementById('btn-mute').addEventListener('click', (e) => {
+            suaraAktif = !suaraAktif;
+            document.getElementById('icon-mute-off').style.display = suaraAktif ? 'block' : 'none';
+            document.getElementById('icon-mute-on').style.display = suaraAktif ? 'none' : 'block';
+            document.getElementById('main-vol-on').style.display = suaraAktif ? 'block' : 'none';
+            document.getElementById('main-vol-off').style.display = suaraAktif ? 'none' : 'block';
+            e.stopPropagation(); 
+        });
+
+        const soundSelects = document.querySelectorAll('.sound-select');
+        soundSelects.forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                soundSelects.forEach(b => b.classList.remove('aktif'));
+                btn.classList.add('aktif');
+                suaraKertas.src = btn.getAttribute('data-src');
+                if(suaraAktif && audioUnlocked) {
+                    suaraKertas.currentTime = 0;
+                    suaraKertas.play().catch(err=>console.log(err));
+                }
+                e.stopPropagation();
+            });
+        });
+
+        // --- TOMBOL TOGGLE (RTL & Mode Halaman) ---
+        const btnLtr = document.getElementById('btn-ltr');
+        const btnRtl = document.getElementById('btn-rtl');
+        btnLtr.addEventListener('click', () => { modeRTL = false; btnLtr.classList.add('aktif'); btnRtl.classList.remove('aktif'); if(globalCanvases.length) initFlipbook(); });
+        btnRtl.addEventListener('click', () => { modeRTL = true; btnRtl.classList.add('aktif'); btnLtr.classList.remove('aktif'); if(globalCanvases.length) initFlipbook(); });
+
+        document.getElementById('btn-page-mode').addEventListener('click', () => {
+            modeHalaman = modeHalaman === 1 ? 2 : 1;
+            document.getElementById('icon-page-1').style.display = modeHalaman === 1 ? 'block' : 'none';
+            document.getElementById('icon-page-2').style.display = modeHalaman === 2 ? 'block' : 'none';
+            if(globalCanvases.length) initFlipbook();
+        });
+
+
+        // --- INIT FLIPBOOK ---
+        function initFlipbook() {
+            if(pageFlip) { pageFlip.destroy(); pageFlip = null; }
+            bookContainer.innerHTML = '<div id="buku"></div>';
+            let bukuDiv = document.getElementById('buku');
+
+            let renderList = [];
+            globalCanvases.forEach(originalCanvas => {
+                let divHalaman = document.createElement('div');
+                divHalaman.className = 'lembaran';
+                let clone = document.createElement('canvas');
+                clone.width = originalCanvas.width;
+                clone.height = originalCanvas.height;
+                clone.getContext('2d').drawImage(originalCanvas, 0, 0);
+                divHalaman.appendChild(clone);
+                renderList.push(divHalaman);
+            });
+
+            if (modeRTL) renderList.reverse();
+            renderList.forEach(hal => bukuDiv.appendChild(hal));
+
+            let canvasPertama = renderList[0].querySelector('canvas');
+            let rasioHalaman = canvasPertama ? (canvasPertama.width / canvasPertama.height) : 0.707;
+            
+            let wTersedia = document.getElementById('area-baca').clientWidth;
+            let hTersedia = document.getElementById('area-baca').clientHeight;
+            
+            let paddingY = 30; 
+            let paddingX = window.innerWidth > window.innerHeight ? 80 : 30; 
+            
+            let targetH = hTersedia - paddingY;
+            let targetW = targetH * rasioHalaman;
+            let containerW;
+
+            if (modeHalaman === 2) {
+                if ((targetW * 2) > (wTersedia - paddingX)) {
+                    targetW = (wTersedia - paddingX) / 2;
+                    targetH = targetW / rasioHalaman;
+                }
+                containerW = targetW * 2;
+            } else {
+                if (targetW > (wTersedia - paddingX)) {
+                    targetW = wTersedia - paddingX;
+                    targetH = targetW / rasioHalaman;
+                }
+                containerW = targetW;
+            }
+            
+            bukuDiv.style.width = Math.floor(containerW) + 'px';
+            bukuDiv.style.height = Math.floor(targetH) + 'px';
+
+            pageFlip = new St.PageFlip(bukuDiv, {
+                width: Math.floor(targetW), height: Math.floor(targetH), size: "fixed",
+                usePortrait: modeHalaman === 1,
+                minWidth: 200, maxWidth: 2500, minHeight: 300, maxHeight: 3000,
+                showCover: true, maxShadowOpacity: 0.1, drawShadow: true, flippingTime: 850 
+            });
+
+            pageFlip.loadFromHTML(bukuDiv.querySelectorAll('.lembaran'));
+            
+            // Baca Bookmark
+            if (namaFileAktif !== "") {
+                let halamanTersimpan = localStorage.getItem('bookmark_elite_' + namaFileAktif);
+                if (halamanTersimpan !== null) {
+                    setTimeout(() => pageFlip.turnToPage(parseInt(halamanTersimpan)), 400);
+                }
+            }
+
+            pageFlip.on('flip', (e) => {
+                mainkanSuara();
+                if (namaFileAktif !== "") localStorage.setItem('bookmark_elite_' + namaFileAktif, e.data);
+            });
+        }
+
+        // Panggil Rak Buku saat halaman pertama kali dimuat
+        window.addEventListener('DOMContentLoaded', fetchLibrary);
+
+        if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(err => {});
+    </script>
+</body>
+</html>
         .popup-container {
             position: absolute; background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
             border: 1px solid rgba(255, 255, 255, 0.5); border-radius: 20px; padding: 8px 15px;
