@@ -1,4 +1,4 @@
-const CACHE_NAME = "pdf-flip-viewer-v1";
+const CACHE_NAME = "pdf-flip-viewer-v10";
 
 const FILES_TO_CACHE = [
   "./",
