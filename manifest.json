@@ -1,6 +1,6 @@
 {
   "name": "PDF Flip Viewer",
-  "short_name": "PDF Viewer",
+  "short_name": "DigiPus",
   "description": "Aplikasi pembaca PDF dengan efek flip buku.",
   "start_url": "./",
   "scope": "./",
