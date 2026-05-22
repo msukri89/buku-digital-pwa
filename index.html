@@ -233,7 +233,7 @@
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
 
         // GANTI URL INI DENGAN URL WEB APP GOOGLE SCRIPT ANDA
-        const URL_GAS = "URL_GAS_ANDA_DISINI"; 
+        const URL_GAS = "https://script.google.com/macros/s/AKfycbz2YB2RrXHxf8xMTXIpHn92L2Hm1VNNQ4jyVObahUaZUOLj_Tj3A7AyiY4dwiED4KWJXA/exec"; 
 
         let pageFlip;
         let suaraKertas = document.getElementById('suara-kertas');
@@ -256,7 +256,7 @@
 
         // Tarik data dari Google Sheets
         async function fetchLibrary() {
-            if (URL_GAS === "https://script.google.com/macros/s/AKfycbz2YB2RrXHxf8xMTXIpHn92L2Hm1VNNQ4jyVObahUaZUOLj_Tj3A7AyiY4dwiED4KWJXA/exec") return; // Bypass jika URL belum diisi
+            if (URL_GAS === "URL_GAS_ANDA_DISINI") return; // Bypass jika URL belum diisi
             
             try {
                 let response = await fetch(URL_GAS);
