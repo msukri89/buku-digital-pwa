@@ -33,11 +33,17 @@
         .loader-text { font-size: 16px; font-weight: 500; color: #1d1d1f; letter-spacing: 0.3px; }
 
         /* --- LAYAR AWAL (HOME SCREEN) --- */
-        .home-screen { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #f5f5f7; z-index: 20; transition: opacity 0.4s ease; opacity: 1; }
+        .home-screen { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #f5f5f7; z-index: 20; transition: opacity 0.4s ease; opacity: 1; gap: 15px; }
         .home-screen.hide { opacity: 0; pointer-events: none; }
+        
         .btn-digipus { background: #1d1d1f; color: #ffffff; border: none; padding: 16px 50px; border-radius: 50px; font-size: 22px; font-weight: 700; box-shadow: 0 10px 25px rgba(0,0,0,0.15); cursor: pointer; transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.3s; letter-spacing: 0.5px; }
         .btn-digipus:active { transform: scale(0.92); box-shadow: 0 5px 15px rgba(0,0,0,0.1); }
-        .hint-text { margin-top: 18px; font-size: 13px; color: #888888; font-weight: 500; text-align: center; }
+        
+        .btn-upload-local { background: #ffffff; color: #1d1d1f; border: 1px solid rgba(0,0,0,0.1); padding: 14px 40px; border-radius: 50px; font-size: 16px; font-weight: 600; box-shadow: 0 5px 15px rgba(0,0,0,0.05); cursor: pointer; transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.3s; letter-spacing: 0.5px; display: flex; align-items: center; gap: 8px; }
+        .btn-upload-local:active { transform: scale(0.92); box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+        .btn-upload-local svg { width: 18px; height: 18px; }
+
+        .hint-text { margin-top: 5px; font-size: 13px; color: #888888; font-weight: 500; text-align: center; max-width: 80%; line-height: 1.4; }
 
         /* --- LACI RAK BUKU (iOS BOTTOM SHEET) --- */
         .library-drawer { 
@@ -161,6 +167,13 @@
     <div id="home-screen" class="home-screen">
         <button id="btn-digipus" class="btn-digipus">DigiPus</button>
         <div class="hint-text">tekan tombol untuk membaca koleksi pustaka</div>
+        
+        <label class="btn-upload-local" title="Upload Manual dari HP">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+            Buka PDF Lokal
+            <input type="file" id="pdf-upload-home" accept="application/pdf" style="display: none;" />
+        </label>
+        <div class="hint-text" style="margin-top: -5px;">tekan untuk membaca file pdf dari hp anda</div>
     </div>
 
     <div id="library-drawer" class="library-drawer">
@@ -390,22 +403,22 @@
 
         // --- FUNGSI RESET ANTI-MACET (DIPERBARUI 100% BULLETPROOF) ---
         function clearBookData() {
-            // Putuskan sesi pemuatan buku sebelumnya jika belum selesai
             sessionLoadAktif++; 
             
-            if (pageFlip) {
+            // Perbaikan: Cek eksistensi pageFlip dengan aman sebelum destroy
+            if (typeof pageFlip !== 'undefined' && pageFlip !== null) {
                 try { 
                     pageFlip.destroy(); 
                 } catch (e) { 
-                    console.warn("Abaikan pesan peringatan PageFlip"); 
+                    console.log("PageFlip sudah bersih"); 
                 }
                 pageFlip = null; 
             }
             
-            // Ganti wadah HTML secara menyeluruh agar tidak ada elemen nyangkut
+            // Hapus isi container sepenuhnya
             let container = document.getElementById('book-container');
             if (container) {
-                container.innerHTML = '<div id="buku"></div>';
+                container.innerHTML = '';
             }
             
             globalCanvases = [];
@@ -528,8 +541,8 @@
             }
         }
 
-        // --- UPLOAD MANUAL DARI MENU DOCK ---
-        document.getElementById('pdf-upload').addEventListener('change', function(e) {
+        // --- UPLOAD MANUAL DARI MENU DOCK & HOME SCREEN ---
+        function handlePdfUpload(e) {
             let file = e.target.files[0];
             if(!file) return;
             
@@ -540,6 +553,7 @@
             loader.classList.remove('hide'); 
             zoomSlider.value = 1; zoomWrapper.style.transform = `scale(1)`;
             
+            navigateTo('buku'); // Pindah ke layar baca jika dipanggil dari Home
             clearBookData();
             namaFileAktif = file.name; 
             
@@ -568,7 +582,11 @@
             };
             fileReader.readAsArrayBuffer(file);
             this.value = ''; 
-        });
+        }
+
+        // Hubungkan fungsi ke kedua tombol upload
+        document.getElementById('pdf-upload').addEventListener('change', handlePdfUpload);
+        document.getElementById('pdf-upload-home').addEventListener('change', handlePdfUpload);
 
         // --- LOGIKA SCRUBBER (SLIDER HALAMAN) ---
         function triggerScrubber() {
@@ -665,18 +683,29 @@
         });
 
 
-        // --- INIT FLIPBOOK ENGINE ---
+        // --- INIT FLIPBOOK ENGINE (DIPERBARUI) ---
         function initFlipbook() {
-            if(pageFlip) { pageFlip.destroy(); pageFlip = null; }
-            bookContainer.innerHTML = '<div id="buku"></div>';
+            // Pastikan tidak ada sisa engine sebelumnya
+            if (pageFlip) {
+                try { pageFlip.destroy(); } catch (e) {}
+                pageFlip = null;
+            }
+
+            // Reset container sebelum inisialisasi agar terhindar dari tumpukan elemen
+            let bukuContainer = document.getElementById('book-container');
+            bukuContainer.innerHTML = '<div id="buku"></div>';
             let bukuDiv = document.getElementById('buku');
+
+            if (globalCanvases.length === 0) return; // Keamanan tambahan jika data kosong
 
             let renderList = [];
             globalCanvases.forEach(originalCanvas => {
                 let divHalaman = document.createElement('div');
                 divHalaman.className = 'lembaran';
+                // Clone canvas
                 let clone = document.createElement('canvas');
-                clone.width = originalCanvas.width; clone.height = originalCanvas.height;
+                clone.width = originalCanvas.width;
+                clone.height = originalCanvas.height;
                 clone.getContext('2d').drawImage(originalCanvas, 0, 0);
                 divHalaman.appendChild(clone);
                 renderList.push(divHalaman);
@@ -685,11 +714,11 @@
             if (modeRTL) renderList.reverse();
             renderList.forEach(hal => bukuDiv.appendChild(hal));
 
-            let canvasPertama = renderList[0].querySelector('canvas');
-            let rasioHalaman = canvasPertama ? (canvasPertama.width / canvasPertama.height) : 0.707;
-            
+            // Perhitungan ukuran yang aman
+            let rasioHalaman = globalCanvases[0] ? (globalCanvases[0].width / globalCanvases[0].height) : 0.707;
             let wTersedia = document.getElementById('area-baca').clientWidth;
             let hTersedia = document.getElementById('area-baca').clientHeight;
+            
             let paddingY = 30; let paddingX = window.innerWidth > window.innerHeight ? 80 : 30; 
             
             let targetH = hTersedia - paddingY;
@@ -707,38 +736,43 @@
             bukuDiv.style.width = Math.floor(containerW) + 'px';
             bukuDiv.style.height = Math.floor(targetH) + 'px';
 
-            pageFlip = new St.PageFlip(bukuDiv, {
-                width: Math.floor(targetW), height: Math.floor(targetH), size: "fixed",
-                usePortrait: modeHalaman === 1, minWidth: 200, maxWidth: 2500, minHeight: 300, maxHeight: 3000,
-                showCover: true, maxShadowOpacity: 0.1, drawShadow: true, flippingTime: 850 
-            });
+            // Inisialisasi engine dalam blok try-catch agar tidak merusak UI jika terjadi kesalahan
+            try {
+                pageFlip = new St.PageFlip(bukuDiv, {
+                    width: Math.floor(targetW), height: Math.floor(targetH), size: "fixed",
+                    usePortrait: modeHalaman === 1, minWidth: 200, maxWidth: 2500, minHeight: 300, maxHeight: 3000,
+                    showCover: true, maxShadowOpacity: 0.1, drawShadow: true, flippingTime: 850 
+                });
 
-            pageFlip.loadFromHTML(bukuDiv.querySelectorAll('.lembaran'));
-            
-            let totalHal = pageFlip.getPageCount();
-            scrubberSlider.max = totalHal;
-            scrubTotal.innerText = totalHal;
-
-            if (namaFileAktif !== "") {
-                let halamanTersimpan = localStorage.getItem('bookmark_elite_' + namaFileAktif);
-                if (halamanTersimpan !== null) {
-                    let targetHal = parseInt(halamanTersimpan);
-                    setTimeout(() => {
-                        pageFlip.turnToPage(targetHal);
-                        scrubberSlider.value = targetHal + 1;
-                        scrubCurrent.innerText = targetHal + 1;
-                    }, 400);
-                }
-            }
-
-            pageFlip.on('flip', (e) => {
-                mainkanSuara();
-                if (namaFileAktif !== "") localStorage.setItem('bookmark_elite_' + namaFileAktif, e.data);
+                pageFlip.loadFromHTML(bukuDiv.querySelectorAll('.lembaran'));
                 
-                let posisiSekarang = e.data + 1;
-                scrubberSlider.value = posisiSekarang;
-                scrubCurrent.innerText = posisiSekarang;
-            });
+                let totalHal = pageFlip.getPageCount();
+                scrubberSlider.max = totalHal;
+                scrubTotal.innerText = totalHal;
+
+                if (namaFileAktif !== "") {
+                    let halamanTersimpan = localStorage.getItem('bookmark_elite_' + namaFileAktif);
+                    if (halamanTersimpan !== null) {
+                        let targetHal = parseInt(halamanTersimpan);
+                        setTimeout(() => {
+                            pageFlip.turnToPage(targetHal);
+                            scrubberSlider.value = targetHal + 1;
+                            scrubCurrent.innerText = targetHal + 1;
+                        }, 400);
+                    }
+                }
+
+                pageFlip.on('flip', (e) => {
+                    mainkanSuara();
+                    if (namaFileAktif !== "") localStorage.setItem('bookmark_elite_' + namaFileAktif, e.data);
+                    
+                    let posisiSekarang = e.data + 1;
+                    scrubberSlider.value = posisiSekarang;
+                    scrubCurrent.innerText = posisiSekarang;
+                });
+            } catch (err) {
+                console.error("Gagal inisialisasi PageFlip:", err);
+            }
         }
 
         window.addEventListener('DOMContentLoaded', fetchLibrary);
