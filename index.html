@@ -438,18 +438,20 @@
             } catch (error) { console.log("Gagal memuat rak buku: ", error); }
         }
 
-        // --- FUNGSI BUKA PDF DARI DATABASE (Telah Diperbaiki!) ---
+        // --- FUNGSI BUKA PDF DARI DATABASE ---
         async function bukaBukuDariURL(url_pdf, judul) {
+            // 1. Lakukan navigasi dan bersihkan data lama TERLEBIH DAHULU
+            navigateTo('buku');
+            clearBookData(); 
+            namaFileAktif = judul; 
+
+            // 2. BARU catat sesi sekarang agar tidak bentrok
             sessionLoadAktif++;
             let sesiSekarang = sessionLoadAktif;
 
             loaderText.innerText = "Menganalisis " + judul + "...";
             loader.classList.remove('hide');
             zoomSlider.value = 1; zoomWrapper.style.transform = `scale(1)`;
-
-            navigateTo('buku');
-            clearBookData(); 
-            namaFileAktif = judul; 
 
             try {
                 let pdfData = await ambilDariDatabase(url_pdf);
@@ -458,19 +460,19 @@
                     if (sesiSekarang !== sessionLoadAktif) return; 
                     loaderText.innerText = "Mengunduh file...";
                     let response = await fetch(url_pdf);
-                    if (!response.ok) throw new Error("Gagal mengunduh file");
+                    
+                    if (!response.ok) throw new Error("Gagal mengunduh: " + response.statusText);
+                    
                     pdfData = await response.arrayBuffer();
                     await simpanKeDatabase(url_pdf, pdfData); 
                 }
 
                 if (sesiSekarang !== sessionLoadAktif) return;
                 
-                // PERBAIKAN: Menggunakan properti { data: ... }
                 let loadingTask = pdfjsLib.getDocument({ data: new Uint8Array(pdfData) });
                 let pdf = await loadingTask.promise;
                 
                 let jumlahHalaman = pdf.numPages;
-                // PERBAIKAN: Skala dinamis agar RAM tidak penuh dan browser crash
                 let scaleTarget = window.innerWidth <= 768 ? 1.0 : 1.5;
 
                 for (let i = 1; i <= jumlahHalaman; i++) {
@@ -502,11 +504,17 @@
             }
         }
 
-        // --- FUNGSI UPLOAD MANUAL (Telah Diperbaiki!) ---
+        // --- FUNGSI UPLOAD MANUAL ---
         function handlePdfUpload(e) {
             let file = e.target.files[0];
             if(!file) return;
             
+            // Pindahkan navigasi & pembersihan ke atas
+            navigateTo('buku');
+            clearBookData();
+            namaFileAktif = file.name; 
+            
+            // Catat sesi setelah data dibersihkan
             sessionLoadAktif++;
             let sesiSekarang = sessionLoadAktif;
 
@@ -514,22 +522,16 @@
             loader.classList.remove('hide'); 
             zoomSlider.value = 1; zoomWrapper.style.transform = `scale(1)`;
             
-            navigateTo('buku');
-            clearBookData();
-            namaFileAktif = file.name; 
-            
             let fileReader = new FileReader();
             fileReader.onload = async function() {
                 try {
                     if (sesiSekarang !== sessionLoadAktif) return;
                     let typedarray = new Uint8Array(this.result);
                     
-                    // PERBAIKAN: Format yang benar { data: array }
                     let loadingTask = pdfjsLib.getDocument({ data: typedarray });
                     let pdf = await loadingTask.promise;
                     
                     let jumlahHalaman = pdf.numPages;
-                    // PERBAIKAN: Skala diturunkan di mobile agar tidak crash/force close
                     let scaleTarget = window.innerWidth <= 768 ? 1.0 : 1.5;
 
                     for (let i = 1; i <= jumlahHalaman; i++) {
@@ -662,7 +664,6 @@
             if (globalCanvases.length === 0) return; 
 
             let renderList = [];
-            // PERBAIKAN: Tidak meng-clone canvas, pakai data yang sama agar RAM hemat 50%
             globalCanvases.forEach(originalCanvas => {
                 let divHalaman = document.createElement('div');
                 divHalaman.className = 'lembaran';
@@ -695,7 +696,6 @@
             bukuDiv.style.height = Math.floor(targetH) + 'px';
 
             try {
-                // PERBAIKAN: minWidth / minHeight diperkecil ke 100 agar aman di layar super kecil
                 pageFlip = new St.PageFlip(bukuDiv, {
                     width: Math.floor(targetW), height: Math.floor(targetH), size: "fixed",
                     usePortrait: modeHalaman === 1, minWidth: 100, maxWidth: 3500, minHeight: 100, maxHeight: 3500,
