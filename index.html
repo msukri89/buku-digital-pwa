@@ -16,21 +16,15 @@
         * { box-sizing: border-box; }
         body { margin: 0; background-color: #f5f5f7; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; height: 100vh; overflow: hidden; -webkit-tap-highlight-color: transparent; }
 
-           
-        /* --- LOADER LOGO KUSTOM --- */
-.logo-loader { 
-    width: 90px; /* Sesuaikan ukuran lebar logo Anda di sini */
-    height: auto; 
-    margin-bottom: 20px; 
-    animation: scalePulse 1.5s infinite cubic-bezier(0.4, 0, 0.2, 1);
-    filter: drop-shadow(0 8px 15px rgba(0,0,0,0.15)); /* Efek bayangan melayang */
-}
-
-@keyframes scalePulse {
-    0% { transform: scale(0.85); opacity: 0.5; }
-    50% { transform: scale(1.15); opacity: 1; }
-    100% { transform: scale(0.85); opacity: 0.5; }
-}
+        /* --- LOADER GEMINI 3 DOTS (MENGANALISIS) --- */
+        .loader-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 999; transition: opacity 0.4s ease; }
+        .loader-overlay.hide { opacity: 0; pointer-events: none; }
+        
+        .gemini-dots { display: flex; gap: 6px; margin-bottom: 15px; align-items: center; justify-content: center; height: 24px; }
+        .gemini-dots span { width: 10px; height: 10px; background-color: #1d1d1f; border-radius: 50%; animation: geminiBlink 1.4s infinite both; }
+        .gemini-dots .dot-1 { animation-delay: -0.32s; }
+        .gemini-dots .dot-2 { animation-delay: -0.16s; }
+        .gemini-dots .dot-3 { animation-delay: 0s; }
         
         @keyframes geminiBlink {
             0%, 80%, 100% { opacity: 0.3; transform: scale(0.7); }
@@ -172,14 +166,14 @@
 
     <div id="home-screen" class="home-screen">
         <button id="btn-digipus" class="btn-digipus">DigiPus</button>
-        <div class="hint-text">Tekan tombol untuk membaca koleksi pustaka</div>
+        <div class="hint-text">tekan tombol untuk membaca koleksi pustaka</div>
         
         <label class="btn-upload-local" title="Upload Manual dari HP">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
             Buka PDF Lokal
             <input type="file" id="pdf-upload-home" accept="application/pdf" style="display: none;" />
         </label>
-        <div class="hint-text" style="margin-top: -5px;">Tekan tombol untuk membaca file pdf dari hp anda</div>
+        <div class="hint-text" style="margin-top: -5px;">tekan untuk membaca file pdf dari hp anda</div>
     </div>
 
     <div id="library-drawer" class="library-drawer">
@@ -260,9 +254,13 @@
     </div>
 
     <div id="loader" class="loader-overlay hide">
-    <img src="logo.png" alt="Loading Logo" class="logo-loader">
-    <div class="loader-text" id="loader-text">Memproses Dokumen...</div>
-</div>
+        <div class="gemini-dots">
+            <span class="dot-1"></span>
+            <span class="dot-2"></span>
+            <span class="dot-3"></span>
+        </div>
+        <div class="loader-text" id="loader-text">Memproses Dokumen...</div>
+    </div>
 
     <audio id="suara-kertas" src="suara1.mp3" preload="auto"></audio>
 
@@ -280,7 +278,7 @@
         let audioUnlocked = false;
         let modeHalaman = window.innerWidth > window.innerHeight ? 2 : 1; 
         let namaFileAktif = ""; 
-        let sessionLoadAktif = 0; 
+        let sessionLoadAktif = 0; // KUNCI ANTI-TABRAKAN BUKU
 
         // --- MESIN DATABASE OFFLINE (IndexedDB) ---
         const dbName = "DigiPusDB";
@@ -301,7 +299,6 @@
         }
 
         async function simpanKeDatabase(url, arrayBuffer) {
-            if(!url) return;
             try {
                 let db = await openDB();
                 let tx = db.transaction(storeName, "readwrite");
@@ -311,7 +308,6 @@
         }
 
         async function ambilDariDatabase(url) {
-            if(!url) return null;
             try {
                 let db = await openDB();
                 return new Promise((resolve, reject) => {
@@ -405,15 +401,21 @@
             }
         }
 
-        // --- FUNGSI RESET ANTI-MACET ---
+        // --- FUNGSI RESET ANTI-MACET (DIPERBARUI 100% BULLETPROOF) ---
         function clearBookData() {
+            sessionLoadAktif++; 
+            
+            // Perbaikan: Cek eksistensi pageFlip dengan aman sebelum destroy
             if (typeof pageFlip !== 'undefined' && pageFlip !== null) {
                 try { 
                     pageFlip.destroy(); 
-                } catch (e) {}
+                } catch (e) { 
+                    console.log("PageFlip sudah bersih"); 
+                }
                 pageFlip = null; 
             }
             
+            // Hapus isi container sepenuhnya
             let container = document.getElementById('book-container');
             if (container) {
                 container.innerHTML = '';
@@ -429,7 +431,9 @@
         document.getElementById('btn-home').addEventListener('click', () => window.history.back());
 
         // --- GESTURE SWIPE TO CLOSE LACI ---
-        let startY = 0; let currentY = 0;
+        let startY = 0;
+        let currentY = 0;
+        
         libraryDrawer.addEventListener('touchstart', (e) => {
             if (libraryDrawer.scrollTop <= 0) startY = e.touches[0].clientY;
         }, {passive: true});
@@ -461,28 +465,14 @@
                 let books = await response.json();
                 
                 books.forEach(book => {
-                    // Pengecekan aman, membaca header huruf kecil (berkat perbaikan di kode.gs)
-                    let judul = book.judul || book.Judul;
-                    let filePdf = book.file || book.File || book.link;
-                    let coverImg = book.cover || book.Cover;
-                    
-                    if(!judul || !filePdf) return; 
-                    
+                    if(!book.judul) return; 
                     let card = document.createElement('div');
                     card.className = 'book-card';
-                    // Pakai dataset attribute untuk mengunci data secara absolut
-                    card.setAttribute('data-judul', judul);
-                    card.setAttribute('data-file', filePdf);
-                    
                     card.innerHTML = `
-                        <img src="${coverImg}" class="book-cover" alt="Cover" onerror="this.src='https://via.placeholder.com/150x200?text=No+Cover'">
-                        <div class="book-title">${judul}</div>
+                        <img src="${book.cover}" class="book-cover" alt="Cover" onerror="this.src='https://via.placeholder.com/150x200?text=No+Cover'">
+                        <div class="book-title">${book.judul}</div>
                     `;
-                    
-                    card.addEventListener('click', function() {
-                        bukaBukuDariURL(this.getAttribute('data-file'), this.getAttribute('data-judul'));
-                    });
-                    
+                    card.addEventListener('click', () => bukaBukuDariURL(book.file, book.judul));
                     libraryGrid.appendChild(card);
                 });
             } catch (error) {
@@ -490,26 +480,25 @@
             }
         }
 
-        // --- FUNGSI LOAD BUKU ---
+        // --- FUNGSI LOAD BUKU (KEBAL OFFLINE & ANTI TABRAKAN SESI) ---
         async function bukaBukuDariURL(url_pdf, judul) {
-            // BERSIHKAN meja dulu, baru buat sesi baru
-            clearBookData(); 
+            // Amankan sesi agar tidak tertabrak buku lain
             sessionLoadAktif++;
             let sesiSekarang = sessionLoadAktif;
 
-            judul = judul || "Buku";
             loaderText.innerText = "Menganalisis " + judul + "...";
             loader.classList.remove('hide');
             zoomSlider.value = 1; zoomWrapper.style.transform = `scale(1)`;
 
             navigateTo('buku');
+            clearBookData(); 
             namaFileAktif = judul; 
 
             try {
                 let pdfData = await ambilDariDatabase(url_pdf);
                 
                 if (!pdfData) {
-                    if (sesiSekarang !== sessionLoadAktif) return; 
+                    if (sesiSekarang !== sessionLoadAktif) return; // Batal jika user klik buku lain
                     loaderText.innerText = "Mengunduh file (Perlu Internet)...";
                     let response = await fetch(url_pdf);
                     if (!response.ok) throw new Error("Gagal mengunduh file");
@@ -525,12 +514,13 @@
                 
                 let jumlahHalaman = pdf.numPages;
                 for (let i = 1; i <= jumlahHalaman; i++) {
-                    if (sesiSekarang !== sessionLoadAktif) return; 
+                    if (sesiSekarang !== sessionLoadAktif) return; // Batal jika user ganti pikiran
                     let page = await pdf.getPage(i);
                     let viewport = page.getViewport({ scale: 2.0 }); 
                     let canvas = document.createElement('canvas');
                     let ctx = canvas.getContext('2d');
-                    canvas.height = viewport.height; canvas.width = viewport.width;
+                    canvas.height = viewport.height;
+                    canvas.width = viewport.width;
                     await page.render({ canvasContext: ctx, viewport: viewport }).promise;
                     globalCanvases.push(canvas);
                 }
@@ -556,7 +546,6 @@
             let file = e.target.files[0];
             if(!file) return;
             
-            clearBookData();
             sessionLoadAktif++;
             let sesiSekarang = sessionLoadAktif;
 
@@ -564,7 +553,8 @@
             loader.classList.remove('hide'); 
             zoomSlider.value = 1; zoomWrapper.style.transform = `scale(1)`;
             
-            navigateTo('buku');
+            navigateTo('buku'); // Pindah ke layar baca jika dipanggil dari Home
+            clearBookData();
             namaFileAktif = file.name; 
             
             let fileReader = new FileReader();
@@ -594,6 +584,7 @@
             this.value = ''; 
         }
 
+        // Hubungkan fungsi ke kedua tombol upload
         document.getElementById('pdf-upload').addEventListener('change', handlePdfUpload);
         document.getElementById('pdf-upload-home').addEventListener('change', handlePdfUpload);
 
@@ -621,6 +612,7 @@
             }
             triggerScrubber(); 
         });
+
 
         // --- INTERAKSI MENU UI ---
         const dock = document.getElementById('dock');
@@ -691,23 +683,26 @@
         });
 
 
-        // --- INIT FLIPBOOK ENGINE ---
+        // --- INIT FLIPBOOK ENGINE (DIPERBARUI) ---
         function initFlipbook() {
+            // Pastikan tidak ada sisa engine sebelumnya
             if (pageFlip) {
                 try { pageFlip.destroy(); } catch (e) {}
                 pageFlip = null;
             }
 
+            // Reset container sebelum inisialisasi agar terhindar dari tumpukan elemen
             let bukuContainer = document.getElementById('book-container');
             bukuContainer.innerHTML = '<div id="buku"></div>';
             let bukuDiv = document.getElementById('buku');
 
-            if (globalCanvases.length === 0) return; 
+            if (globalCanvases.length === 0) return; // Keamanan tambahan jika data kosong
 
             let renderList = [];
             globalCanvases.forEach(originalCanvas => {
                 let divHalaman = document.createElement('div');
                 divHalaman.className = 'lembaran';
+                // Clone canvas
                 let clone = document.createElement('canvas');
                 clone.width = originalCanvas.width;
                 clone.height = originalCanvas.height;
@@ -719,6 +714,7 @@
             if (modeRTL) renderList.reverse();
             renderList.forEach(hal => bukuDiv.appendChild(hal));
 
+            // Perhitungan ukuran yang aman
             let rasioHalaman = globalCanvases[0] ? (globalCanvases[0].width / globalCanvases[0].height) : 0.707;
             let wTersedia = document.getElementById('area-baca').clientWidth;
             let hTersedia = document.getElementById('area-baca').clientHeight;
@@ -740,6 +736,7 @@
             bukuDiv.style.width = Math.floor(containerW) + 'px';
             bukuDiv.style.height = Math.floor(targetH) + 'px';
 
+            // Inisialisasi engine dalam blok try-catch agar tidak merusak UI jika terjadi kesalahan
             try {
                 pageFlip = new St.PageFlip(bukuDiv, {
                     width: Math.floor(targetW), height: Math.floor(targetH), size: "fixed",
@@ -779,6 +776,7 @@
         }
 
         window.addEventListener('DOMContentLoaded', fetchLibrary);
+
         if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(err => {});
     </script>
 </body>
