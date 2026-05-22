@@ -203,6 +203,7 @@
         let suaraAktif = true;
         let audioUnlocked = false;
         let modeHalaman = window.innerWidth > window.innerHeight ? 2 : 1; 
+        let namaFileAktif = ""; // Kunci untuk Bookmark
 
         document.getElementById('icon-page-1').style.display = modeHalaman === 1 ? 'block' : 'none';
         document.getElementById('icon-page-2').style.display = modeHalaman === 2 ? 'block' : 'none';
@@ -270,26 +271,20 @@
         // Toggle Mute
         document.getElementById('btn-mute').addEventListener('click', (e) => {
             suaraAktif = !suaraAktif;
-            // Update Ikon di Popup
             document.getElementById('icon-mute-off').style.display = suaraAktif ? 'block' : 'none';
             document.getElementById('icon-mute-on').style.display = suaraAktif ? 'none' : 'block';
-            // Update Ikon di Menu Utama
             document.getElementById('main-vol-on').style.display = suaraAktif ? 'block' : 'none';
             document.getElementById('main-vol-off').style.display = suaraAktif ? 'none' : 'block';
-            e.stopPropagation(); // Mencegah popup tertutup
+            e.stopPropagation(); 
         });
 
         // Pilih Suara
         const soundSelects = document.querySelectorAll('.sound-select');
         soundSelects.forEach(btn => {
             btn.addEventListener('click', (e) => {
-                // Hapus highlight dari tombol lain
                 soundSelects.forEach(b => b.classList.remove('aktif'));
                 btn.classList.add('aktif');
-                // Ganti sumber file mp3
                 suaraKertas.src = btn.getAttribute('data-src');
-                
-                // Mainkan preview
                 if(suaraAktif && audioUnlocked) {
                     suaraKertas.currentTime = 0;
                     suaraKertas.play().catch(err=>console.log(err));
@@ -316,6 +311,8 @@
             let file = e.target.files[0];
             if(!file) return;
             
+            namaFileAktif = file.name; // Simpan nama file untuk Bookmark
+
             loader.classList.remove('hide'); 
             zoomSlider.value = 1;
             zoomWrapper.style.transform = `scale(1)`;
@@ -345,7 +342,7 @@
             this.value = ''; 
         });
 
-        // --- INIT FLIPBOOK (ANTI-CRASH) ---
+        // --- INIT FLIPBOOK (DENGAN LOGIKA BOOKMARK) ---
         function initFlipbook() {
             if(pageFlip) { 
                 pageFlip.destroy(); 
@@ -415,7 +412,25 @@
             });
 
             pageFlip.loadFromHTML(bukuDiv.querySelectorAll('.lembaran'));
-            pageFlip.on('flip', mainkanSuara);
+            
+            // --- EKSEKUSI PEMBACAAN BOOKMARK ---
+            if (namaFileAktif !== "") {
+                let halamanTersimpan = localStorage.getItem('bookmark_elite_' + namaFileAktif);
+                if (halamanTersimpan !== null) {
+                    // Memberikan jeda waktu agar DOM buku selesai terpasang sempurna
+                    setTimeout(() => {
+                        pageFlip.turnToPage(parseInt(halamanTersimpan));
+                    }, 400);
+                }
+            }
+
+            pageFlip.on('flip', (e) => {
+                mainkanSuara();
+                // --- PENYIMPANAN BOOKMARK OTOMATIS ---
+                if (namaFileAktif !== "") {
+                    localStorage.setItem('bookmark_elite_' + namaFileAktif, e.data);
+                }
+            });
         }
 
         if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(err => {});
