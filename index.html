@@ -15,12 +15,9 @@
         /* --- RESET & DASAR --- */
         * { box-sizing: border-box; }
         body {
-            margin: 0; 
-            background-color: #f5f5f7; 
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            height: 100vh; 
-            overflow: hidden; 
-            -webkit-tap-highlight-color: transparent;
+            margin: 0; background-color: #f5f5f7; 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            height: 100vh; overflow: hidden; -webkit-tap-highlight-color: transparent;
         }
 
         /* --- LOADER ELITE --- */
@@ -45,8 +42,11 @@
             width: 100vw; height: 100vh; display: flex; justify-content: center; align-items: center; overflow: auto; 
         }
         #zoom-wrapper { transition: transform 0.2s ease-out; transform-origin: center center; }
-        #buku { display: block; margin: 0 auto; transition: width 0.3s ease, height 0.3s ease; }
         
+        /* Wadah stabil agar destroy() tidak merusak DOM */
+        #book-container { display: flex; justify-content: center; align-items: center; }
+        
+        #buku { display: block; margin: 0 auto; transition: width 0.3s ease, height 0.3s ease; }
         .lembaran { background-color: #fff; overflow: hidden; display: flex; justify-content: center; align-items: center; }
         .lembaran canvas { max-width: 100%; max-height: 100%; object-fit: contain; }
 
@@ -59,8 +59,7 @@
 
         .main-toggle { 
             width: 38px; height: 38px; border-radius: 50%; border: none; 
-            background: rgba(255, 255, 255, 0.6); color: #1d1d1f; cursor: pointer; 
-            display: flex; justify-content: center; align-items: center;
+            background: rgba(255, 255, 255, 0.6); color: #1d1d1f; cursor: pointer; display: flex; justify-content: center; align-items: center;
             transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), background 0.3s ease; z-index: 101;
         }
         .main-toggle:active { transform: scale(0.85); background: rgba(255, 255, 255, 0.9); }
@@ -84,7 +83,6 @@
             opacity: 0; pointer-events: none; transform: scale(0.8); display: flex; align-items: center; z-index: 99;
         }
         .zoom-popup.show { opacity: 1; pointer-events: auto; transform: scale(1); }
-
         input[type=range] { -webkit-appearance: none; width: 130px; background: transparent; margin: 0; }
         input[type=range]:focus { outline: none; }
         input[type=range]::-webkit-slider-thumb {
@@ -166,11 +164,13 @@
 
     <div class="area-baca" id="area-baca">
         <div id="zoom-wrapper">
-            <div id="buku"></div>
+            <div id="book-container">
+                <div id="buku"></div>
+            </div>
         </div>
     </div>
 
-    <audio id="suara-kertas" src="https://actions.google.com/sounds/v1/foley/paper_rustle.ogg" preload="auto"></audio>
+    <audio id="suara-kertas" src="https://cdn.pixabay.com/download/audio/2022/03/10/audio_c8c8a73467.mp3?filename=page-flip-47177.mp3" preload="auto"></audio>
 
     <script>
         pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
@@ -183,10 +183,8 @@
         let modeRTL = false; 
         let suaraAktif = true;
         let audioUnlocked = false;
-        // Default: 2 halaman jika landscape, 1 halaman jika portrait
         let modeHalaman = window.innerWidth > window.innerHeight ? 2 : 1; 
 
-        // Setel ikon halaman sesuai default
         document.getElementById('icon-page-1').style.display = modeHalaman === 1 ? 'block' : 'none';
         document.getElementById('icon-page-2').style.display = modeHalaman === 2 ? 'block' : 'none';
 
@@ -197,6 +195,7 @@
         const zoomSlider = document.getElementById('zoom-slider');
         const zoomWrapper = document.getElementById('zoom-wrapper');
         const loader = document.getElementById('loader');
+        const bookContainer = document.getElementById('book-container');
 
         menuToggle.addEventListener('click', () => {
             dock.classList.toggle('collapsed');
@@ -215,26 +214,27 @@
         document.getElementById('area-baca').addEventListener('touchstart', () => zoomPopup.classList.remove('show'), {passive: true});
         document.getElementById('area-baca').addEventListener('click', () => zoomPopup.classList.remove('show'));
 
+        // UNLOCK AUDIO IOS
         function unlockAudio() {
             if (!audioUnlocked && suaraKertas) {
                 suaraKertas.play().then(() => {
                     suaraKertas.pause();
                     suaraKertas.currentTime = 0;
                     audioUnlocked = true;
-                }).catch(e => console.log("Menunggu interaksi layar"));
+                }).catch(e => console.log("Menunggu sentuhan untuk audio"));
             }
         }
         document.body.addEventListener('click', unlockAudio, { once: true });
         document.body.addEventListener('touchstart', unlockAudio, { once: true });
 
         function mainkanSuara() {
-            if (suaraKertas && suaraAktif && audioUnlocked) {
+            if (suaraKertas && suaraAktif) {
                 suaraKertas.currentTime = 0;
-                suaraKertas.play().catch(e => console.log("Audio diblokir"));
+                suaraKertas.play().catch(e => console.log("Audio diblokir browser"));
             }
         }
 
-        // --- TOMBOL TOGGLE (RTL, HALAMAN, VOLUME) ---
+        // --- TOMBOL TOGGLE ---
         const btnLtr = document.getElementById('btn-ltr');
         const btnRtl = document.getElementById('btn-rtl');
         btnLtr.addEventListener('click', () => { modeRTL = false; btnLtr.classList.add('aktif'); btnRtl.classList.remove('aktif'); if(globalCanvases.length) initFlipbook(); });
@@ -253,11 +253,12 @@
             document.getElementById('icon-vol-off').style.display = suaraAktif ? 'none' : 'block';
         });
 
-        // --- UPLOAD & EKSTRAKSI PDF ---
+        // --- UPLOAD ---
         document.getElementById('pdf-upload').addEventListener('change', function(e) {
             let file = e.target.files[0];
             if(!file) return;
-            loader.classList.remove('hide'); // Munculkan loading screen
+            
+            loader.classList.remove('hide'); 
             zoomSlider.value = 1;
             zoomWrapper.style.transform = `scale(1)`;
             
@@ -277,22 +278,29 @@
                         await page.render({ canvasContext: ctx, viewport: viewport }).promise;
                         globalCanvases.push(canvas);
                     }
-                    loader.classList.add('hide'); // Matikan loading screen
+                    loader.classList.add('hide'); 
                     dock.classList.remove('collapsed');
                     initFlipbook();
                 });
             };
             fileReader.readAsArrayBuffer(file);
+            
+            // Wajib agar file yang sama bisa di-upload ulang jika error
+            this.value = ''; 
         });
 
-        // --- INIT FLIPBOOK DARI CACHE DOM ---
+        // --- INIT FLIPBOOK (ANTI-CRASH) ---
         function initFlipbook() {
+            if(pageFlip) { 
+                pageFlip.destroy(); 
+                pageFlip = null; 
+            }
+            
+            // Bangun ulang DOM agar bersih dari sisa-sisa plugin lama
+            bookContainer.innerHTML = '<div id="buku"></div>';
             let bukuDiv = document.getElementById('buku');
-            bukuDiv.innerHTML = ''; 
-            if(pageFlip) { pageFlip.destroy(); pageFlip = null; }
 
             let renderList = [];
-            // Kloning canvas agar tidak rusak saat di-destroy
             globalCanvases.forEach(originalCanvas => {
                 let divHalaman = document.createElement('div');
                 divHalaman.className = 'lembaran';
@@ -320,33 +328,34 @@
             
             let targetH = hTersedia - paddingY;
             let targetW = targetH * rasioHalaman;
+            let containerW;
 
-            // Logika Penentuan Wadah (1 atau 2 Halaman)
             if (modeHalaman === 2) {
                 if ((targetW * 2) > (wTersedia - paddingX)) {
                     targetW = (wTersedia - paddingX) / 2;
                     targetH = targetW / rasioHalaman;
                 }
-                bukuDiv.style.width = Math.floor(targetW * 2) + 'px';
+                containerW = targetW * 2;
             } else {
                 if (targetW > (wTersedia - paddingX)) {
                     targetW = wTersedia - paddingX;
                     targetH = targetW / rasioHalaman;
                 }
-                bukuDiv.style.width = Math.floor(targetW) + 'px';
+                containerW = targetW;
             }
             
+            bukuDiv.style.width = Math.floor(containerW) + 'px';
             bukuDiv.style.height = Math.floor(targetH) + 'px';
 
             pageFlip = new St.PageFlip(bukuDiv, {
                 width: Math.floor(targetW),
                 height: Math.floor(targetH),
                 size: "fixed",
-                usePortrait: modeHalaman === 1, // Kunci utama memaksa mode 1 halaman
+                usePortrait: modeHalaman === 1,
                 minWidth: 200, maxWidth: 2500,
                 minHeight: 300, maxHeight: 3000,
                 showCover: true, 
-                maxShadowOpacity: 0.08, 
+                maxShadowOpacity: 0.1, 
                 drawShadow: true, 
                 flippingTime: 850 
             });
