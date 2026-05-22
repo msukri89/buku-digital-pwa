@@ -1,411 +1,295 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Buku Digital Elite</title>
+    
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#f5f5f7">
 
-  <title>PDF Flip Viewer</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/page-flip/dist/js/page-flip.browser.min.js"></script>
 
-  <!-- PWA -->
-  <link rel="manifest" href="manifest.json" />
-  <meta name="theme-color" content="#f4f4f6" />
-  <link rel="apple-touch-icon" href="icon-192.png" />
+    <style>
+        /* --- RESET & DASAR --- */
+        * { box-sizing: border-box; }
+        body {
+            margin: 0; 
+            background-color: #f5f5f7; 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            height: 100vh; 
+            overflow: hidden; 
+            -webkit-tap-highlight-color: transparent;
+        }
 
-  <!-- PDF.js -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+        /* --- AREA BACA ANTI-TERPOTONG --- */
+        .area-baca { 
+            width: 100vw; 
+            height: 100vh; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            overflow: hidden; 
+        }
+        #buku { display: block; margin: 0 auto; }
+        .lembaran { 
+            background-color: #fff; 
+            overflow: hidden; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+        }
+        .lembaran canvas { 
+            max-width: 100%; 
+            max-height: 100%; 
+            object-fit: contain; 
+        }
 
-  <!-- Page Flip -->
-  <script src="https://cdn.jsdelivr.net/npm/page-flip/dist/js/page-flip.browser.min.js"></script>
+        /* --- MENU KONTROL (GLASSMORPHISM & ANIMASI SPRING) --- */
+        .menu-container { 
+            position: fixed; 
+            z-index: 100; 
+            display: flex; 
+            padding: 10px; 
+            background: rgba(255, 255, 255, 0.25); 
+            backdrop-filter: blur(15px); 
+            -webkit-backdrop-filter: blur(15px); 
+            border: 1px solid rgba(255, 255, 255, 0.4); 
+            border-radius: 35px; 
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.08);
+        }
 
-  <style>
-    * {
-      box-sizing: border-box;
-    }
+        .main-toggle { 
+            width: 46px; 
+            height: 46px; 
+            border-radius: 50%; 
+            border: none; 
+            background: rgba(255, 255, 255, 0.5); 
+            color: #1d1d1f;
+            cursor: pointer; 
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), background 0.3s ease;
+            z-index: 101;
+        }
+        .main-toggle:active { transform: scale(0.85); background: rgba(255, 255, 255, 0.8); }
 
-    html,
-    body {
-      margin: 0;
-      width: 100%;
-      height: 100%;
-      overflow: hidden;
-      font-family: Arial, sans-serif;
-      background: #f4f4f6;
-    }
+        .dock { 
+            display: flex; 
+            gap: 10px; 
+            opacity: 1;
+            /* Efek membal ala Apple */
+            transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1); 
+            overflow: hidden; 
+        }
 
-    body {
-      position: relative;
-    }
+        .icon-btn { 
+            border: none; 
+            background: transparent; 
+            color: #444; 
+            cursor: pointer; 
+            width: 42px; 
+            height: 42px; 
+            border-radius: 50%; 
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: background 0.3s ease, color 0.3s ease; 
+        }
+        .icon-btn:hover { background: rgba(0, 0, 0, 0.05); color: #000; }
+        .icon-btn.aktif { background: rgba(0, 0, 0, 0.1); color: #000; }
 
-    #area-baca {
-      width: 100vw;
-      height: 100vh;
-      padding: 16px;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      overflow: hidden;
-    }
+        /* Orientasi Landscape: Kiri Atas */
+        @media (orientation: landscape) {
+            .menu-container { top: 25px; left: 25px; flex-direction: column; align-items: center; }
+            .dock { flex-direction: column; padding-top: 10px; transform-origin: top center; }
+            .dock.collapsed { max-height: 0; opacity: 0; padding-top: 0; transform: translateY(-15px) scale(0.8); pointer-events: none; }
+        }
 
-    #buku {
-      display: block;
-    }
-
-    .lembaran {
-      background: #ffffff;
-      overflow: hidden;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-    }
-
-    .lembaran canvas {
-      width: 100%;
-      height: 100%;
-      display: block;
-      object-fit: contain;
-    }
-
-    #menu {
-      position: fixed;
-      z-index: 1000;
-      left: 50%;
-      bottom: 18px;
-      transform: translateX(-50%);
-      display: flex;
-      gap: 10px;
-      padding: 10px;
-      border-radius: 999px;
-      background: rgba(255, 255, 255, 0.78);
-      backdrop-filter: blur(12px);
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
-    }
-
-    .tombol,
-    .label-upload {
-      width: 44px;
-      height: 44px;
-      border: none;
-      border-radius: 50%;
-      background: #ffffff;
-      color: #222222;
-      cursor: pointer;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      font-size: 20px;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-      user-select: none;
-    }
-
-    .tombol.aktif {
-      background: #222222;
-      color: #ffffff;
-    }
-
-    #pdf-upload {
-      display: none;
-    }
-
-    #pesan-awal {
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      width: 90%;
-      max-width: 420px;
-      transform: translate(-50%, -50%);
-      text-align: center;
-      color: #555555;
-      line-height: 1.5;
-      pointer-events: none;
-    }
-
-    #pesan-awal h1 {
-      margin: 0 0 8px;
-      font-size: 24px;
-      color: #222222;
-    }
-
-    #pesan-awal p {
-      margin: 0;
-      font-size: 15px;
-    }
-
-    @media (orientation: landscape) {
-      #menu {
-        left: 18px;
-        bottom: 50%;
-        transform: translateY(50%);
-        flex-direction: column;
-      }
-
-      #area-baca {
-        padding: 18px 72px;
-      }
-    }
-  </style>
+        /* Orientasi Portrait: Tengah Bawah */
+        @media (orientation: portrait) {
+            .menu-container { bottom: 35px; left: 50%; transform: translateX(-50%); flex-direction: row-reverse; align-items: center; }
+            .dock { flex-direction: row; padding-right: 10px; transform-origin: right center; }
+            .dock.collapsed { max-width: 0; opacity: 0; padding-right: 0; transform: translateX(15px) scale(0.8); pointer-events: none; }
+        }
+    </style>
 </head>
-
 <body>
 
-  <div id="area-baca">
-    <div id="buku"></div>
-  </div>
+    <div id="menu-container" class="menu-container">
+        <button id="menu-toggle" class="main-toggle" title="Menu">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"></circle><circle cx="12" cy="5" r="1"></circle><circle cx="12" cy="19" r="1"></circle></svg>
+        </button>
 
-  <div id="pesan-awal">
-    <h1>PDF Flip Viewer</h1>
-    <p>Tekan tombol 📄 untuk memilih file PDF.</p>
-  </div>
+        <div id="dock" class="dock collapsed">
+            <label class="icon-btn" title="Pilih PDF">
+                <input type="file" id="pdf-upload" accept="application/pdf" style="display: none;" />
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="17 8 12 3 7 8"></polyline><line x1="12" y1="3" x2="12" y2="15"></line></svg>
+            </label>
+            
+            <button id="btn-ltr" class="icon-btn aktif" title="Kiri ke Kanan">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 16 16 12 12 8"></polyline><line x1="8" y1="12" x2="16" y2="12"></line></svg>
+            </button>
+            
+            <button id="btn-rtl" class="icon-btn" title="Kanan ke Kiri (Arab)">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 8 8 12 12 16"></polyline><line x1="16" y1="12" x2="8" y2="12"></line></svg>
+            </button>
 
-  <div id="menu">
-    <label class="label-upload" title="Pilih PDF">
-      📄
-      <input type="file" id="pdf-upload" accept="application/pdf" />
-    </label>
+            <button id="btn-vol" class="icon-btn" title="Suara Kertas">
+                <svg id="icon-vol-on" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path></svg>
+                <svg id="icon-vol-off" style="display:none;" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="23" y1="9" x2="17" y2="15"></line><line x1="17" y1="9" x2="23" y2="15"></line></svg>
+            </button>
+        </div>
+    </div>
 
-    <button id="btn-ltr" class="tombol aktif" title="Mode kiri ke kanan">
-      →
-    </button>
+    <div class="area-baca" id="area-baca">
+        <div id="buku"></div>
+    </div>
 
-    <button id="btn-rtl" class="tombol" title="Mode kanan ke kiri">
-      ←
-    </button>
+    <audio id="suara-kertas" src="https://actions.google.com/sounds/v1/foley/paper_rustle.ogg" preload="auto"></audio>
 
-    <button id="btn-suara" class="tombol aktif" title="Suara">
-      🔊
-    </button>
-  </div>
+    <script>
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
 
-  <audio
-    id="suara-kertas"
-    src="https://actions.google.com/sounds/v1/foley/paper_rustle.ogg"
-    preload="auto">
-  </audio>
+        let pageFlip;
+        let suaraKertas = document.getElementById('suara-kertas');
+        let modeRTL = false; 
+        let suaraAktif = true;
+        let audioUnlocked = false;
 
-  <script>
-    pdfjsLib.GlobalWorkerOptions.workerSrc =
-      "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js";
+        // --- INTERAKSI UI ---
+        const dock = document.getElementById('dock');
+        const menuToggle = document.getElementById('menu-toggle');
 
-    let pageFlip = null;
-    let pdfAktif = null;
-    let modeRTL = false;
-    let suaraAktif = true;
-    let sedangRender = false;
-
-    const bukuDiv = document.getElementById("buku");
-    const uploadInput = document.getElementById("pdf-upload");
-    const pesanAwal = document.getElementById("pesan-awal");
-    const suaraKertas = document.getElementById("suara-kertas");
-
-    const btnLTR = document.getElementById("btn-ltr");
-    const btnRTL = document.getElementById("btn-rtl");
-    const btnSuara = document.getElementById("btn-suara");
-
-    uploadInput.addEventListener("change", async function (event) {
-      const file = event.target.files[0];
-
-      if (!file) return;
-
-      if (file.type !== "application/pdf") {
-        alert("Mohon pilih file berformat PDF.");
-        return;
-      }
-
-      try {
-        pesanAwal.innerHTML = "<h1>Memuat PDF...</h1><p>Mohon tunggu sebentar.</p>";
-        pesanAwal.style.display = "block";
-
-        const arrayBuffer = await file.arrayBuffer();
-        const dataPDF = new Uint8Array(arrayBuffer);
-
-        pdfAktif = await pdfjsLib.getDocument(dataPDF).promise;
-
-        await renderBuku();
-      } catch (error) {
-        alert("PDF gagal dibuka.");
-        console.error(error);
-      }
-    });
-
-    btnLTR.addEventListener("click", async function () {
-      modeRTL = false;
-      updateTombolArah();
-
-      if (pdfAktif) {
-        await renderBuku();
-      }
-    });
-
-    btnRTL.addEventListener("click", async function () {
-      modeRTL = true;
-      updateTombolArah();
-
-      if (pdfAktif) {
-        await renderBuku();
-      }
-    });
-
-    btnSuara.addEventListener("click", function () {
-      suaraAktif = !suaraAktif;
-
-      btnSuara.textContent = suaraAktif ? "🔊" : "🔇";
-      btnSuara.classList.toggle("aktif", suaraAktif);
-    });
-
-    function updateTombolArah() {
-      btnLTR.classList.toggle("aktif", !modeRTL);
-      btnRTL.classList.toggle("aktif", modeRTL);
-    }
-
-    function mainkanSuara() {
-      if (!suaraAktif || !suaraKertas) return;
-
-      suaraKertas.currentTime = 0;
-      suaraKertas.play().catch(function () {
-        // Browser kadang menolak audio sebelum ada interaksi pengguna.
-      });
-    }
-
-    async function renderBuku() {
-      if (!pdfAktif || sedangRender) return;
-
-      sedangRender = true;
-
-      if (pageFlip) {
-        pageFlip.destroy();
-        pageFlip = null;
-      }
-
-      bukuDiv.innerHTML = "";
-      pesanAwal.style.display = "none";
-
-      const daftarHalaman = [];
-
-      for (let nomor = 1; nomor <= pdfAktif.numPages; nomor++) {
-        const page = await pdfAktif.getPage(nomor);
-
-        const viewport = page.getViewport({
-          scale: 1.5
+        menuToggle.addEventListener('click', () => {
+            dock.classList.toggle('collapsed');
         });
 
-        const wrapper = document.createElement("div");
-        wrapper.className = "lembaran";
-
-        const canvas = document.createElement("canvas");
-        const context = canvas.getContext("2d");
-
-        canvas.width = viewport.width;
-        canvas.height = viewport.height;
-
-        await page.render({
-          canvasContext: context,
-          viewport: viewport
-        }).promise;
-
-        wrapper.appendChild(canvas);
-        daftarHalaman.push(wrapper);
-      }
-
-      if (modeRTL) {
-        daftarHalaman.reverse();
-      }
-
-      daftarHalaman.forEach(function (halaman) {
-        bukuDiv.appendChild(halaman);
-      });
-
-      const ukuran = hitungUkuranBuku();
-
-      pageFlip = new St.PageFlip(bukuDiv, {
-        width: ukuran.lebarHalaman,
-        height: ukuran.tinggiHalaman,
-
-        size: "fixed",
-
-        showCover: false,
-        usePortrait: true,
-
-        minWidth: 220,
-        maxWidth: 2000,
-        minHeight: 300,
-        maxHeight: 2600,
-
-        drawShadow: true,
-        maxShadowOpacity: 0.12,
-        flippingTime: 650,
-
-        mobileScrollSupport: false,
-        clickEventForward: true
-      });
-
-      pageFlip.loadFromHTML(document.querySelectorAll(".lembaran"));
-
-      pageFlip.on("flip", function () {
-        mainkanSuara();
-      });
-
-      sedangRender = false;
-    }
-
-    function hitungUkuranBuku() {
-      const canvasPertama = bukuDiv.querySelector("canvas");
-
-      const rasioHalaman = canvasPertama
-        ? canvasPertama.height / canvasPertama.width
-        : 1.414;
-
-      const lebarLayar = window.innerWidth;
-      const tinggiLayar = window.innerHeight;
-
-      const landscape = lebarLayar > tinggiLayar;
-
-      const paddingHorizontal = landscape ? 150 : 32;
-      const paddingVertical = 32;
-
-      const lebarAman = lebarLayar - paddingHorizontal;
-      const tinggiAman = tinggiLayar - paddingVertical;
-
-      const jumlahHalamanTerlihat = landscape ? 2 : 1;
-
-      let tinggiHalaman = tinggiAman;
-      let lebarHalaman = tinggiHalaman / rasioHalaman;
-
-      const lebarMaksimalPerHalaman = lebarAman / jumlahHalamanTerlihat;
-
-      if (lebarHalaman > lebarMaksimalPerHalaman) {
-        lebarHalaman = lebarMaksimalPerHalaman;
-        tinggiHalaman = lebarHalaman * rasioHalaman;
-      }
-
-      return {
-        lebarHalaman: Math.floor(lebarHalaman),
-        tinggiHalaman: Math.floor(tinggiHalaman)
-      };
-    }
-
-    let resizeTimer = null;
-
-    window.addEventListener("resize", function () {
-      clearTimeout(resizeTimer);
-
-      resizeTimer = setTimeout(function () {
-        if (pdfAktif) {
-          renderBuku();
+        // Buka Kunci Audio Browser
+        function unlockAudio() {
+            if (!audioUnlocked && suaraKertas) {
+                suaraKertas.play().then(() => {
+                    suaraKertas.pause();
+                    suaraKertas.currentTime = 0;
+                    audioUnlocked = true;
+                }).catch(e => console.log("Menunggu interaksi layar"));
+            }
         }
-      }, 300);
-    });
+        document.body.addEventListener('click', unlockAudio, { once: true });
+        document.body.addEventListener('touchstart', unlockAudio, { once: true });
 
-    if ("serviceWorker" in navigator) {
-      window.addEventListener("load", function () {
-        navigator.serviceWorker.register("sw.js")
-          .then(function () {
-            console.log("Service Worker berhasil aktif.");
-          })
-          .catch(function (error) {
-            console.log("Service Worker gagal:", error);
-          });
-      });
-    }
-  </script>
+        function mainkanSuara() {
+            if (suaraKertas && suaraAktif && audioUnlocked) {
+                suaraKertas.currentTime = 0;
+                suaraKertas.play().catch(e => console.log("Audio diblokir"));
+            }
+        }
 
+        // Toggle LTR / RTL
+        const btnLtr = document.getElementById('btn-ltr');
+        const btnRtl = document.getElementById('btn-rtl');
+        btnLtr.addEventListener('click', () => { modeRTL = false; btnLtr.classList.add('aktif'); btnRtl.classList.remove('aktif'); });
+        btnRtl.addEventListener('click', () => { modeRTL = true; btnRtl.classList.add('aktif'); btnLtr.classList.remove('aktif'); });
+
+        // Toggle Volume
+        document.getElementById('btn-vol').addEventListener('click', () => {
+            suaraAktif = !suaraAktif;
+            document.getElementById('icon-vol-on').style.display = suaraAktif ? 'block' : 'none';
+            document.getElementById('icon-vol-off').style.display = suaraAktif ? 'none' : 'block';
+        });
+
+        // --- UPLOAD & RENDER ---
+        document.getElementById('pdf-upload').addEventListener('change', function(e) {
+            let file = e.target.files[0];
+            if(!file) return;
+            let fileReader = new FileReader();
+            fileReader.onload = function() {
+                let typedarray = new Uint8Array(this.result);
+                // Mesin ekstraksi berjalan persis seperti sebelumnya (tidak diubah)
+                pdfjsLib.getDocument(typedarray).promise.then(pdf => renderBuku(pdf));
+            };
+            fileReader.readAsArrayBuffer(file);
+            dock.classList.remove('collapsed');
+        });
+
+        async function renderBuku(pdf) {
+            let bukuDiv = document.getElementById('buku');
+            bukuDiv.innerHTML = ''; 
+            if(pageFlip) { pageFlip.destroy(); pageFlip = null; }
+
+            let jumlahHalaman = pdf.numPages;
+            let daftarHalaman = [];
+
+            // Mesin ekstraksi stabil (tidak diotak-atik)
+            for (let i = 1; i <= jumlahHalaman; i++) {
+                let page = await pdf.getPage(i);
+                let viewport = page.getViewport({ scale: 2.0 }); 
+                let divHalaman = document.createElement('div');
+                divHalaman.className = 'lembaran';
+                let canvas = document.createElement('canvas');
+                let ctx = canvas.getContext('2d');
+                canvas.height = viewport.height;
+                canvas.width = viewport.width;
+                await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+                divHalaman.appendChild(canvas);
+                daftarHalaman.push(divHalaman);
+            }
+            if (modeRTL) daftarHalaman.reverse();
+            daftarHalaman.forEach(hal => bukuDiv.appendChild(hal));
+
+            // KALKULASI DIMENSI ANTI-POTONG
+            let canvasPertama = bukuDiv.querySelector('canvas');
+            let rasioHalaman = canvasPertama ? (canvasPertama.width / canvasPertama.height) : 0.707;
+            
+            let areaBaca = document.getElementById('area-baca');
+            let wTersedia = areaBaca.clientWidth;
+            let hTersedia = areaBaca.clientHeight;
+            let isLandscape = wTersedia > hTersedia;
+
+            // Margin aman
+            let paddingY = isLandscape ? 40 : 100; 
+            let paddingX = isLandscape ? 120 : 40; 
+
+            let targetH = hTersedia - paddingY;
+            let targetW = targetH * rasioHalaman;
+
+            // Validasi lebar
+            if (isLandscape) {
+                if ((targetW * 2) > (wTersedia - paddingX)) {
+                    targetW = (wTersedia - paddingX) / 2;
+                    targetH = targetW / rasioHalaman;
+                }
+            } else {
+                if (targetW > (wTersedia - paddingX)) {
+                    targetW = wTersedia - paddingX;
+                    targetH = targetW / rasioHalaman;
+                }
+            }
+
+            // Inisialisasi buku
+            pageFlip = new St.PageFlip(bukuDiv, {
+                width: Math.floor(targetW),
+                height: Math.floor(targetH),
+                size: "fixed",
+                minWidth: 200, maxWidth: 2000,
+                minHeight: 300, maxHeight: 2500,
+                showCover: true, 
+                usePortrait: true,
+                maxShadowOpacity: 0.08, 
+                drawShadow: true, 
+                flippingTime: 850 
+            });
+
+            pageFlip.loadFromHTML(bukuDiv.querySelectorAll('.lembaran'));
+            pageFlip.on('flip', mainkanSuara);
+        }
+
+        // PWA Service Worker
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js').catch(err => console.log(err));
+        }
+    </script>
 </body>
 </html>
