@@ -1116,21 +1116,7 @@
         console.error(err);
         loadingDiv.innerHTML = `<i>Error: ${err.message}</i>`;
     }
-}
-
-
-                // Perbesar laci otomatis jika balasannya panjang
-                if (aiResponseText.length > 200 && aiDrawer.classList.contains('show-half')) {
-                    aiDrawer.classList.remove('show-half');
-                    aiDrawer.classList.add('show-full');
-                }
-
-            } catch (err) {
-                console.error(err);
-                loadingDiv.innerHTML = "<i>Maaf, saya tidak bisa terhubung ke server atau memproses halaman tersebut.</i>";
-            }
         }
-
         aiSendBtn.addEventListener('click', sendAiMessage);
         aiInput.addEventListener('keypress', (e) => { 
             if(e.key === 'Enter') sendAiMessage(); 
