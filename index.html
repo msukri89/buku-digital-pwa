@@ -429,7 +429,7 @@
         // ----------------------------------------------------
         // KUNCI API AI (WAJIB DIISI)
         // ----------------------------------------------------
-        const GEMINI_API_KEY = "AIzaSyC1kJ6kIlOzt-HwxtctkMYfm1Yo5oqvm8A"; 
+        const GEMINI_API_KEY = "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"; 
         // ----------------------------------------------------
 
         let pageFlip;
@@ -1064,7 +1064,7 @@
     let text = aiInput.value.trim();
     if (!text) return;
     
-    // UI Chat User
+    // UI Chat
     let userDiv = document.createElement('div');
     userDiv.className = 'chat-bubble user';
     userDiv.innerText = text;
@@ -1075,45 +1075,48 @@
     // UI Loading
     let loadingDiv = document.createElement('div');
     loadingDiv.className = 'chat-bubble ai';
-    loadingDiv.innerHTML = '<div class="ai-typing"><span></span><span></span><span></span> <span style="font-style:italic; font-size:12px; margin-left:8px;">Menganalisis...</span></div>';
+    loadingDiv.innerHTML = '<div class="ai-typing"><span></span><span></span><span></span> <span style="font-style:italic; font-size:13px; margin-left:8px;">Menganalisis...</span></div>';
     aiChatArea.appendChild(loadingDiv);
 
     try {
         let currentPage = parseInt(document.getElementById('ai-context-page').innerText);
-        let base64Image = await getPageAsBase64(currentPage);
-        
-        // PENGGANTIAN URL KE MODEL PRO-VISION (STABIL)
-        let url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.0-pro-vision:generateContent?key=${GEMINI_API_KEY}`;
-        
-        let response = await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+        let base64Image = await getPageAsBase64(currentPage); // Pastikan ini menghasilkan string base64 murni
+
+        const response = await fetch("https://api.openai.com/v1/chat/completions", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer KUNCI_API_OPENAI_ANDA_DISINI`
+            },
             body: JSON.stringify({
-                contents: [{
-                    parts: [
-                        { text: text }, // Teks perintah
-                        { inline_data: { mime_type: "image/jpeg", data: base64Image } } // Format vision
-                    ]
-                }]
+                "model": "gpt-4o",
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": [
+                            { "type": "text", "text": `Jawab pertanyaan ini berdasarkan gambar: ${text}` },
+                            { "type": "image_url", "image_url": { "url": `data:image/jpeg;base64,${base64Image}` } }
+                        ]
+                    }
+                ]
             })
         });
 
-        let data = await response.json();
+        const data = await response.json();
         
         if (!response.ok) {
-            throw new Error(data.error ? data.error.message : "Gagal terhubung");
+            throw new Error(data.error.message);
         }
 
-        let aiResponseText = data.candidates[0].content.parts[0].text;
+        let aiResponseText = data.choices[0].message.content;
         loadingDiv.innerHTML = marked.parse(aiResponseText);
         aiChatArea.scrollTop = aiChatArea.scrollHeight;
 
     } catch (err) {
         console.error(err);
-        loadingDiv.innerHTML = `<i style="color:red;">Error: ${err.message}. Mohon cek API Key di Google AI Studio.</i>`;
+        loadingDiv.innerHTML = `<i style="color:red;">Error: ${err.message}</i>`;
     }
 }
-
 
         aiSendBtn.addEventListener('click', sendAiMessage);
         aiInput.addEventListener('keypress', (e) => { 
