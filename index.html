@@ -10,7 +10,8 @@
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/page-flip/dist/js/page-flip.browser.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script> <style>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script> 
+    <style>
         /* --- RESET & DASAR --- */
         * { box-sizing: border-box; }
         body { margin: 0; background-color: #f5f5f7; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; height: 100vh; overflow: hidden; -webkit-tap-highlight-color: transparent; transition: background-color 0.4s ease; }
@@ -335,7 +336,7 @@
         
         <div id="ai-chat-area" class="ai-chat-area">
             <div class="chat-bubble ai">
-                Halo! Saya Asisten AI Anda. Saya sudah membaca buku ini dan siap membantu.<br><br>Ada yang ingin dirangkum atau ditanyakan dari <b>halaman <span class="ai-page-num-placeholder">1</span></b>?
+                Halo! Saya Asisten AI Anda. Saya siap membantu menganalisis teks, grafik, maupun gambar di buku ini.<br><br>Ada yang ingin dirangkum atau ditanyakan dari <b>halaman <span class="ai-page-num-placeholder">1</span></b>?
             </div>
         </div>
 
@@ -995,7 +996,7 @@
 
 
         // =========================================
-        // LOGIKA BARU: INTEGRASI GEMINI API SUNGGUHAN
+        // LOGIKA BARU: INTEGRASI GEMINI API SUNGGUHAN (MULTIMODAL)
         // =========================================
 
         const btnAiTrigger = document.getElementById('btn-ai-trigger');
@@ -1020,7 +1021,7 @@
         const aiSendBtn = document.getElementById('btn-send-ai');
         const aiChatArea = document.getElementById('ai-chat-area');
 
-        // Fungsi ekstrak teks dari PDF
+        // Fungsi ekstrak teks native dari PDF (untuk berjaga-jaga)
         async function getPageText(pageNum) {
             if (!pdfDoc) return "";
             try {
@@ -1033,11 +1034,35 @@
             }
         }
 
+        // FUNGSI BARU: Ekstrak halaman PDF menjadi gambar Base64 (Untuk PDF hasil scan/JPEG)
+        async function getPageAsBase64(pageNum) {
+            if (!pdfDoc) return null;
+            try {
+                let page = await pdfDoc.getPage(pageNum);
+                // Skala 1.5 sudah cukup jelas untuk dibaca oleh Vision AI Gemini
+                let viewport = page.getViewport({ scale: 1.5 }); 
+                let canvas = document.createElement('canvas');
+                let ctx = canvas.getContext('2d');
+                canvas.height = viewport.height;
+                canvas.width = viewport.width;
+                
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+                
+                // Ambil base64 string (tanpa prefix data:image/jpeg;base64,)
+                let dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+                return dataUrl.split(',')[1]; 
+            } catch (e) {
+                console.error("Gagal mengekstrak gambar halaman:", e);
+                return null;
+            }
+        }
+
         async function sendAiMessage() {
             let text = aiInput.value.trim();
             if(!text) return;
             
-            // Cek apakah API Key sudah diisi
             if(GEMINI_API_KEY === "TARUH_API_KEY_ANDA_DI_SINI") {
                 alert("SILAKAN MASUKKAN API KEY GOOGLE GEMINI DULU DI DALAM KODE HTML!");
                 return;
@@ -1060,20 +1085,35 @@
             aiChatArea.scrollTop = aiChatArea.scrollHeight;
 
             try {
-                // 3. Baca teks dari halaman yang sedang dibuka
                 let currentPage = parseInt(document.getElementById('ai-context-page').innerText);
-                let contextText = await getPageText(currentPage);
                 
-                // Susun Prompt Gabungan (Konteks Buku + Pertanyaan User)
-                let prompt = `Berikut adalah teks dari halaman ${currentPage} sebuah buku:\n\n"${contextText}"\n\nBerdasarkan teks di atas, tolong jawab permintaan pengguna berikut dalam bahasa Indonesia yang ramah:\n\nPermintaan pengguna: ${text}`;
+                // Coba ambil teks secara native
+                let contextText = await getPageText(currentPage);
+                // Ambil gambar halaman (Multimodal)
+                let base64Image = await getPageAsBase64(currentPage);
+                
+                let contents = [];
 
-                // 4. Kirim ke Gemini API
+                if (base64Image) {
+                    // Jika gambar berhasil diekstrak (sangat berguna untuk PDF hasil scan/JPEG)
+                    contents.push({
+                        parts: [
+                            { text: `Tolong jawab permintaan ini dalam bahasa Indonesia yang ramah: "${text}". Fokuskan jawaban Anda pada informasi yang terdapat di dalam gambar halaman buku yang saya lampirkan ini.` },
+                            { inline_data: { mime_type: "image/jpeg", data: base64Image } }
+                        ]
+                    });
+                } else {
+                    // Fallback jika gambar gagal diekstrak, pakai teks biasa
+                    contents.push({
+                        parts: [{ text: `Berikut adalah teks halaman ${currentPage}:\n"${contextText}"\n\nPertanyaan: ${text}` }]
+                    });
+                }
+
+                // 4. Kirim ke Gemini API (Otomatis memproses multimodal jika ada inline_data)
                 let response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        contents: [{ parts: [{ text: prompt }] }]
-                    })
+                    body: JSON.stringify({ contents: contents })
                 });
 
                 if(!response.ok) throw new Error("Terjadi kesalahan koneksi API.");
@@ -1081,7 +1121,7 @@
                 let data = await response.json();
                 let aiResponseText = data.candidates[0].content.parts[0].text;
 
-                // 5. Ganti animasi loading dengan teks jawaban asli (Format Markdown)
+                // 5. Tampilkan jawaban asli
                 loadingDiv.innerHTML = marked.parse(aiResponseText);
                 aiChatArea.scrollTop = aiChatArea.scrollHeight;
 
@@ -1093,7 +1133,7 @@
 
             } catch (err) {
                 console.error(err);
-                loadingDiv.innerHTML = "<i>Maaf, saya tidak bisa terhubung ke server atau terjadi kesalahan dalam membaca halaman.</i>";
+                loadingDiv.innerHTML = "<i>Maaf, saya tidak bisa terhubung ke server atau memproses halaman tersebut.</i>";
             }
         }
 
