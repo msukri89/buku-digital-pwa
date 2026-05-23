@@ -24,25 +24,21 @@
             position: relative;
             display: inline-block;
             margin-bottom: 20px;
-            /* Latar belakang kotak dihilangkan agar transparan sepenuhnya */
         }
 
         .logo-loader { 
-            width: 100px; /* Ukuran logo */
+            width: 100px; 
             height: auto; 
             display: block;
-            /* Logo dasar diset abu-abu dan redup */
             filter: grayscale(100%) opacity(0.25);
         }
 
-        /* Layer cahaya yang berjalan HANYA di atas bentuk logo */
         .logo-glare {
             position: absolute;
             top: 0; left: 0; width: 100%; height: 100%;
-            background-image: url('logo.png'); /* Mengambil bentuk asli logo */
+            background-image: url('logo.png'); 
             background-size: 100% 100%;
             background-repeat: no-repeat;
-            /* Masking cahaya miring 60 derajat */
             -webkit-mask-image: linear-gradient(60deg, transparent 20%, black 50%, transparent 80%);
             -webkit-mask-size: 300% 100%;
             animation: shimmerSweep 1.8s infinite linear;
@@ -87,7 +83,6 @@
         }
         .library-drawer.show { transform: translateY(0); }
 
-        /* Header Sticky Wrapper */
         .drawer-sticky-header {
             position: sticky; top: 0; left: 0; width: 100%;
             background: rgba(245, 245, 247, 0.70);
@@ -102,13 +97,11 @@
         .btn-close-drawer { background: rgba(0,0,0,0.08); color: #555; border: none; border-radius: 50%; width: 34px; height: 34px; display: flex; justify-content: center; align-items: center; cursor: pointer; transition: 0.2s; }
         .btn-close-drawer:active { background: rgba(0,0,0,0.15); transform: scale(0.9); }
 
-        /* Kotak Pencarian */
         .search-container { position: relative; margin: 0; }
         .search-container input { width: 100%; padding: 12px 15px 12px 40px; border-radius: 16px; border: 1px solid rgba(0,0,0,0.05); background: rgba(255,255,255,0.7); font-size: 15px; font-family: inherit; color: #333; outline: none; transition: 0.3s; box-shadow: inset 0 2px 5px rgba(0,0,0,0.02); }
         .search-container input:focus { background: rgba(255,255,255,1); border-color: rgba(0,0,0,0.15); box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
         .search-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); width: 18px; height: 18px; color: #999; pointer-events: none; }
 
-        /* Grid Buku */
         .library-grid { width: 100%; display: flex; flex-wrap: wrap; justify-content: center; gap: 25px; padding: 25px 20px 80px; }
         .book-card { width: 135px; border-radius: 12px; background: rgba(255, 255, 255, 0.9); box-shadow: 0 10px 20px rgba(0,0,0,0.06); cursor: pointer; border: 1px solid rgba(200,200,200,0.3); transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.3s ease; display: flex; flex-direction: column; overflow: hidden; }
         .book-card:hover { transform: translateY(-8px) scale(1.02); box-shadow: 0 15px 30px rgba(0,0,0,0.1); }
@@ -121,7 +114,7 @@
         #book-container { display: flex; justify-content: center; align-items: center; }
         #buku { display: block; margin: 0 auto; transition: width 0.3s ease, height 0.3s ease; }
         .lembaran { background-color: #fff; overflow: hidden; display: flex; justify-content: center; align-items: center; }
-        .lembaran canvas { max-width: 100%; max-height: 100%; object-fit: contain; }
+        .lembaran canvas, .lembaran img { max-width: 100%; max-height: 100%; object-fit: contain; }
 
         /* --- MENU KONTROL DOCK --- */
         .menu-container { position: fixed; z-index: 100; display: flex; padding: 8px; background: rgba(255, 255, 255, 0.25); backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); border: 1px solid rgba(255, 255, 255, 0.4); border-radius: 30px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08); transition: transform 0.6s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.4s ease; transform: translateY(0); opacity: 1; }
@@ -298,7 +291,12 @@
 
         let pageFlip;
         let suaraKertas = document.getElementById('suara-kertas');
-        let globalCanvases = []; 
+        
+        // --- VARIABEL LAZY LOADING & MEMORY ---
+        let pdfDoc = null; 
+        let halDirender = new Set(); 
+        let currentScaleTarget = 1.5; 
+        
         let totalHalamanAktif = 0; 
         let modeRTL = false; 
         let suaraAktif = true;
@@ -420,16 +418,19 @@
             }
         }
 
+        // --- RESET DATA BUKU ---
         function clearBookData() {
             sessionLoadAktif++; 
-            if (typeof pageFlip !== 'undefined' && pageFlip !== null) {
+            if (pageFlip) {
                 try { pageFlip.destroy(); } catch (e) { }
                 pageFlip = null; 
             }
             let container = document.getElementById('book-container');
             if (container) container.innerHTML = '';
             
-            globalCanvases = [];
+            // Hapus referensi memori PDF lama agar tidak bocor
+            pdfDoc = null;
+            halDirender.clear();
             totalHalamanAktif = 0;
             namaFileAktif = "";
         }
@@ -474,42 +475,80 @@
             } catch (error) { console.log("Gagal memuat rak buku: ", error); }
         }
 
-        // --- BACKGROUND RENDER LOADER ---
-        async function muatLatarBelakang(pdf, mulai, akhir, sesi, scaleTarget) {
-            for (let i = mulai; i <= akhir; i++) {
-                if (sesi !== sessionLoadAktif) return;
-                
-                await new Promise(r => setTimeout(r, 60)); 
-                
-                try {
-                    let page = await pdf.getPage(i);
-                    let viewport = page.getViewport({ scale: scaleTarget }); 
-                    let canvas = document.createElement('canvas');
-                    let ctx = canvas.getContext('2d');
-                    canvas.height = viewport.height; 
-                    canvas.width = viewport.width;
-                    await page.render({ canvasContext: ctx, viewport: viewport }).promise;
-                    
-                    globalCanvases[i - 1] = canvas;
+        // --- SISTEM LAZY LOADING MEMORI ---
+        async function renderHalaman(i) {
+            // Abaikan jika halaman di luar batas, sudah di-render, atau dokumen belum siap
+            if (i < 1 || i > totalHalamanAktif || halDirender.has(i) || !pdfDoc) return;
+            halDirender.add(i); // Tandai sedang diproses
 
-                    let bukuDiv = document.getElementById('buku');
-                    if (bukuDiv) {
-                        let lembaranDivs = bukuDiv.querySelectorAll('.lembaran');
-                        let indexDOM = modeRTL ? (totalHalamanAktif - i) : (i - 1);
-                        let targetDiv = lembaranDivs[indexDOM];
+            try {
+                let page = await pdfDoc.getPage(i);
+                let viewport = page.getViewport({ scale: currentScaleTarget }); 
+                
+                let canvas = document.createElement('canvas');
+                let ctx = canvas.getContext('2d', { alpha: false }); // alpha false = hemat memori
+                canvas.height = viewport.height; 
+                canvas.width = viewport.width;
+                
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                await page.render({ canvasContext: ctx, viewport: viewport }).promise;
 
-                        if (targetDiv) {
-                            let clone = document.createElement('canvas');
-                            clone.width = canvas.width;
-                            clone.height = canvas.height;
-                            clone.getContext('2d').drawImage(canvas, 0, 0);
-                            
-                            targetDiv.innerHTML = ''; 
-                            targetDiv.appendChild(clone);
-                        }
+                // Ubah canvas menjadi gambar agar sangat ringan saat animasi lipatan
+                let img = document.createElement('img');
+                img.src = canvas.toDataURL('image/jpeg', 0.85); 
+                img.style.maxWidth = '100%';
+                img.style.maxHeight = '100%';
+                img.style.objectFit = 'contain';
+
+                let bukuDiv = document.getElementById('buku');
+                if(bukuDiv) {
+                    let lembaranDivs = bukuDiv.querySelectorAll('.lembaran');
+                    let indexDOM = modeRTL ? (totalHalamanAktif - i) : (i - 1);
+                    let targetDiv = lembaranDivs[indexDOM];
+
+                    if (targetDiv) {
+                        targetDiv.innerHTML = ''; 
+                        targetDiv.appendChild(img);
                     }
-                } catch(e) { console.log("Background load error hal", i, e); }
+                }
+                
+                // Kosongkan kanvas dari RAM
+                canvas.width = 0; canvas.height = 0; 
+            } catch(e) { 
+                console.error("Gagal render halaman", i, e);
+                halDirender.delete(i); 
             }
+        }
+
+        function kelolaMemoriHalaman(halamanSekarang) {
+            let radiusRender = 4; // Render 4 halaman ke depan dan ke belakang
+            let radiusHapus = 7;  // Kosongkan dari RAM jika lebih dari 7 halaman jaraknya
+
+            // 1. Render halaman terdekat
+            for (let i = halamanSekarang - radiusRender; i <= halamanSekarang + radiusRender; i++) {
+                if (i >= 1 && i <= totalHalamanAktif) {
+                    renderHalaman(i);
+                }
+            }
+
+            // 2. Bersihkan memori halaman yang sudah tertinggal jauh
+            let bukuDiv = document.getElementById('buku');
+            if (!bukuDiv) return;
+            let lembaranDivs = bukuDiv.querySelectorAll('.lembaran');
+
+            halDirender.forEach(i => {
+                if (i < halamanSekarang - radiusHapus || i > halamanSekarang + radiusHapus) {
+                    let indexDOM = modeRTL ? (totalHalamanAktif - i) : (i - 1);
+                    let targetDiv = lembaranDivs[indexDOM];
+                    if (targetDiv) {
+                        // Kembalikan ke mode loading skeleton
+                        targetDiv.innerHTML = '<div class="page-loading"><div class="fallback-spinner"></div></div>';
+                    }
+                    halDirender.delete(i); // Hapus dari daftar memori
+                }
+            });
         }
 
         // --- FUNGSI BUKA PDF DARI DATABASE ---
@@ -521,7 +560,7 @@
             let sesiSekarang = sessionLoadAktif;
 
             judul = judul || "Buku";
-            loaderText.innerText = "Menganalisis " + judul + "...";
+            loaderText.innerText = "Membuka " + judul + "...";
             loaderSubtext.innerText = "";
             loader.classList.remove('hide');
             zoomSlider.value = 1; zoomWrapper.style.transform = `scale(1)`;
@@ -541,53 +580,20 @@
                 if (sesiSekarang !== sessionLoadAktif) return;
                 
                 let loadingTask = pdfjsLib.getDocument({ data: new Uint8Array(pdfData) });
-                let pdf = await loadingTask.promise;
+                pdfDoc = await loadingTask.promise;
                 
-                let jumlahHalaman = pdf.numPages;
-                totalHalamanAktif = jumlahHalaman;
-                globalCanvases = new Array(jumlahHalaman).fill(null);
+                totalHalamanAktif = pdfDoc.numPages;
 
-                // --- UPDATE: PENGATURAN KUALITAS RESOLUSI TINGGI (DPR) ---
+                // Set Skala Target Render
                 let dpr = window.devicePixelRatio || 1;
-                // Kita lipat gandakan resolusi berdasarkan native pixel layar agar sangat tajam 
-                // Math.min digunakan agar HP tidak jebol memorinya jika DPR layarnya di atas 2.5
-                let scaleTarget = (window.innerWidth <= 768 ? 1.2 : 1.5) * Math.min(dpr, 2.5);
-
-                let targetAwal = 20; 
-                let halamanTersimpan = localStorage.getItem('bookmark_elite_' + judul);
-                
-                if (halamanTersimpan) {
-                    targetAwal = Math.max(20, parseInt(halamanTersimpan) + 2);
-                }
-                let batasAwal = Math.min(targetAwal, jumlahHalaman);
-
-                loaderSubtext.innerText = `Menyiapkan ${batasAwal} halaman pertama...`;
-
-                for (let i = 1; i <= batasAwal; i++) {
-                    if (sesiSekarang !== sessionLoadAktif) return;
-                    loaderText.innerText = `Memproses Bagian Awal (${i}/${batasAwal})`;
-                    
-                    let page = await pdf.getPage(i);
-                    let viewport = page.getViewport({ scale: scaleTarget }); 
-                    let canvas = document.createElement('canvas');
-                    let ctx = canvas.getContext('2d');
-                    canvas.height = viewport.height;
-                    canvas.width = viewport.width;
-                    await page.render({ canvasContext: ctx, viewport: viewport }).promise;
-                    
-                    globalCanvases[i - 1] = canvas;
-                }
-                
-                if (sesiSekarang !== sessionLoadAktif) return;
+                currentScaleTarget = (window.innerWidth <= 768 ? 1.2 : 1.5) * Math.min(dpr, 2.0);
                 
                 loader.classList.add('hide'); 
                 dock.classList.remove('collapsed');
+                
+                // Mulai inisiasi buku (Instan)
                 initFlipbook();
                 triggerScrubber(); 
-
-                if (jumlahHalaman > batasAwal) {
-                    muatLatarBelakang(pdf, batasAwal + 1, jumlahHalaman, sesiSekarang, scaleTarget);
-                }
 
             } catch (err) {
                 console.error(err);
@@ -610,7 +616,7 @@
             sessionLoadAktif++;
             let sesiSekarang = sessionLoadAktif;
 
-            loaderText.innerText = "Menganalisis Dokumen...";
+            loaderText.innerText = "Membuka Dokumen...";
             loaderSubtext.innerText = "";
             loader.classList.remove('hide'); 
             zoomSlider.value = 1; zoomWrapper.style.transform = `scale(1)`;
@@ -621,53 +627,22 @@
                     if (sesiSekarang !== sessionLoadAktif) return;
                     let typedarray = new Uint8Array(this.result);
                     let loadingTask = pdfjsLib.getDocument({ data: typedarray });
-                    let pdf = await loadingTask.promise;
+                    pdfDoc = await loadingTask.promise;
                     
-                    let jumlahHalaman = pdf.numPages;
-                    totalHalamanAktif = jumlahHalaman;
-                    globalCanvases = new Array(jumlahHalaman).fill(null);
+                    totalHalamanAktif = pdfDoc.numPages;
 
-                    // --- UPDATE: PENGATURAN KUALITAS RESOLUSI TINGGI (DPR) ---
                     let dpr = window.devicePixelRatio || 1;
-                    let scaleTarget = (window.innerWidth <= 768 ? 1.2 : 1.5) * Math.min(dpr, 2.5);
+                    currentScaleTarget = (window.innerWidth <= 768 ? 1.2 : 1.5) * Math.min(dpr, 2.0);
 
-                    let targetAwal = 20; 
-                    let halamanTersimpan = localStorage.getItem('bookmark_elite_' + namaFileAktif);
-                    
-                    if (halamanTersimpan) {
-                        targetAwal = Math.max(20, parseInt(halamanTersimpan) + 2);
-                    }
-                    let batasAwal = Math.min(targetAwal, jumlahHalaman);
-
-                    loaderSubtext.innerText = `Menyiapkan ${batasAwal} halaman pertama...`;
-
-                    for (let i = 1; i <= batasAwal; i++) {
-                        if (sesiSekarang !== sessionLoadAktif) return;
-                        loaderText.innerText = `Memproses Bagian Awal (${i}/${batasAwal})`;
-                        let page = await pdf.getPage(i);
-                        let viewport = page.getViewport({ scale: scaleTarget }); 
-                        let canvas = document.createElement('canvas');
-                        let ctx = canvas.getContext('2d');
-                        canvas.height = viewport.height; 
-                        canvas.width = viewport.width;
-                        await page.render({ canvasContext: ctx, viewport: viewport }).promise;
-                        
-                        globalCanvases[i - 1] = canvas;
-                    }
-
-                    if (sesiSekarang !== sessionLoadAktif) return;
                     loader.classList.add('hide'); 
                     dock.classList.remove('collapsed');
+                    
                     initFlipbook();
                     triggerScrubber();
 
-                    if (jumlahHalaman > batasAwal) {
-                        muatLatarBelakang(pdf, batasAwal + 1, jumlahHalaman, sesiSekarang, scaleTarget);
-                    }
-
                 } catch (err) {
                     console.error("Kesalahan membaca file lokal:", err);
-                    alert("Gagal membaca dokumen. Dokumen PDF rusak atau terlalu berat untuk HP ini.");
+                    alert("Gagal membaca dokumen. Dokumen PDF rusak atau terlalu berat.");
                     loader.classList.add('hide');
                 }
             };
@@ -778,28 +753,19 @@
 
             let renderList = [];
             
+            // Siapkan halaman kosong (skeleton loader) sesuai jumlah total halaman
             for (let i = 0; i < totalHalamanAktif; i++) {
                 let divHalaman = document.createElement('div');
                 divHalaman.className = 'lembaran';
-                
-                if (globalCanvases[i] !== null) {
-                    let originalCanvas = globalCanvases[i];
-                    let clone = document.createElement('canvas');
-                    clone.width = originalCanvas.width;
-                    clone.height = originalCanvas.height;
-                    clone.getContext('2d').drawImage(originalCanvas, 0, 0);
-                    divHalaman.appendChild(clone);
-                } else {
-                    divHalaman.innerHTML = '<div class="page-loading"><div class="fallback-spinner"></div></div>';
-                }
-                
+                divHalaman.innerHTML = '<div class="page-loading"><div class="fallback-spinner"></div></div>';
                 renderList.push(divHalaman);
             }
 
             if (modeRTL) renderList.reverse();
             renderList.forEach(hal => bukuDiv.appendChild(hal));
 
-            let rasioHalaman = globalCanvases[0] ? (globalCanvases[0].width / globalCanvases[0].height) : 0.707;
+            // Default rasio A4 (Lebar / Tinggi)
+            let rasioHalaman = 0.707; 
             let wTersedia = document.getElementById('area-baca').clientWidth;
             let hTersedia = document.getElementById('area-baca').clientHeight;
             
@@ -833,19 +799,25 @@
                 scrubberSlider.max = totalHal;
                 scrubTotal.innerText = totalHal;
 
+                // --- LOGIKA BOOKMARK ---
+                let targetAwal = 1;
                 if (namaFileAktif !== "") {
                     let halamanTersimpan = localStorage.getItem('bookmark_elite_' + namaFileAktif);
                     if (halamanTersimpan !== null) {
-                        let targetHal = parseInt(halamanTersimpan);
-                        setTimeout(() => {
-                            if(targetHal < pageFlip.getPageCount()) {
-                                pageFlip.turnToPage(targetHal);
-                                scrubberSlider.value = targetHal + 1;
-                                scrubCurrent.innerText = targetHal + 1;
-                            }
-                        }, 400);
+                        let indexTersimpan = parseInt(halamanTersimpan);
+                        if(indexTersimpan < pageFlip.getPageCount()) {
+                            targetAwal = indexTersimpan + 1; // +1 karena interface user dihitung dari 1
+                            setTimeout(() => {
+                                pageFlip.turnToPage(indexTersimpan);
+                                scrubberSlider.value = targetAwal;
+                                scrubCurrent.innerText = targetAwal;
+                            }, 400);
+                        }
                     }
                 }
+
+                // Panggil render memori untuk pertama kali buku terbuka (termasuk pada halaman bookmark)
+                kelolaMemoriHalaman(targetAwal);
 
                 pageFlip.on('flip', (e) => {
                     mainkanSuara();
@@ -854,6 +826,9 @@
                     let posisiSekarang = e.data + 1;
                     scrubberSlider.value = posisiSekarang;
                     scrubCurrent.innerText = posisiSekarang;
+
+                    // Dinamis merender dan menghapus memori halaman saat membaca
+                    kelolaMemoriHalaman(posisiSekarang);
                 });
             } catch (err) {
                 console.error("Gagal inisialisasi PageFlip:", err);
