@@ -25,18 +25,17 @@
             display: inline-block;
             margin-bottom: 20px;
             border-radius: 12px;
-            overflow: hidden; /* Mengunci efek cahaya agar tidak bocor dari area logo */
-            background: rgba(0,0,0,0.03); /* Dasar skeleton transparan */
+            overflow: hidden; 
+            background: rgba(0,0,0,0.03); 
         }
 
         .logo-loader { 
-            width: 90px; /* Ukuran lebar logo Anda */
+            width: 90px; 
             height: auto; 
             display: block;
             filter: drop-shadow(0 8px 15px rgba(0,0,0,0.15));
         }
 
-        /* Efek sapuan cahaya miring (Shimmer/Skeleton) */
         .logo-shimmer-wrapper::after {
             content: "";
             position: absolute;
@@ -53,12 +52,15 @@
             100% { left: 250%; }
         }
         
-        /* Fallback Spinner jika logo gagal dimuat */
         .fallback-spinner { width: 45px; height: 45px; border: 4px solid rgba(0,0,0,0.1); border-left-color: #1d1d1f; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 20px; }
         @keyframes spin { 100% { transform: rotate(360deg); } }
 
         .loader-text { font-size: 16px; font-weight: 500; color: #1d1d1f; letter-spacing: 0.3px; text-align: center; }
         .loader-subtext { font-size: 12px; font-weight: 400; color: #666; margin-top: 5px; text-align: center; }
+
+        /* Halaman Kosong (Placeholder) CSS */
+        .page-loading { display: flex; justify-content: center; align-items: center; width: 100%; height: 100%; background: #fafafa; }
+        .page-loading .fallback-spinner { width: 25px; height: 25px; border-width: 3px; border-left-color: #ccc; margin: 0; }
 
         /* --- LAYAR AWAL (HOME SCREEN) --- */
         .home-screen { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #f5f5f7; z-index: 20; transition: opacity 0.4s ease; opacity: 1; gap: 15px; }
@@ -295,6 +297,7 @@
         let pageFlip;
         let suaraKertas = document.getElementById('suara-kertas');
         let globalCanvases = []; 
+        let totalHalamanAktif = 0; // KUNCI: Menyimpan memori total halaman aktif saat ini
         let modeRTL = false; 
         let suaraAktif = true;
         let audioUnlocked = false;
@@ -423,7 +426,9 @@
             }
             let container = document.getElementById('book-container');
             if (container) container.innerHTML = '';
+            
             globalCanvases = [];
+            totalHalamanAktif = 0;
             namaFileAktif = "";
         }
 
@@ -467,13 +472,12 @@
             } catch (error) { console.log("Gagal memuat rak buku: ", error); }
         }
 
-        // --- BACKGROUND RENDER LOADER (SMART LAZY LOAD) ---
+        // --- BACKGROUND RENDER LOADER (NO FLICKER INJECTION) ---
         async function muatLatarBelakang(pdf, mulai, akhir, sesi, scaleTarget) {
             for (let i = mulai; i <= akhir; i++) {
                 if (sesi !== sessionLoadAktif) return;
                 
-                // Jeda 80ms antar halaman agar UI tidak macet saat pengguna sedang membaca
-                await new Promise(r => setTimeout(r, 80)); 
+                await new Promise(r => setTimeout(r, 60)); 
                 
                 try {
                     let page = await pdf.getPage(i);
@@ -484,26 +488,23 @@
                     canvas.width = viewport.width;
                     await page.render({ canvasContext: ctx, viewport: viewport }).promise;
                     
-                    globalCanvases.push(canvas);
+                    globalCanvases[i - 1] = canvas;
 
-                    // Update flipbook tanpa flicker (setiap 5 halaman atau di halaman terakhir)
-                    if (pageFlip && document.getElementById('buku')) {
-                        let divHalaman = document.createElement('div');
-                        divHalaman.className = 'lembaran';
-                        divHalaman.appendChild(canvas);
+                    // Mengisi kanvas secara langsung ke kerangka yang sudah dibuat tanpa updateFromHtml
+                    let bukuDiv = document.getElementById('buku');
+                    if (bukuDiv) {
+                        let lembaranDivs = bukuDiv.querySelectorAll('.lembaran');
+                        let indexDOM = modeRTL ? (totalHalamanAktif - i) : (i - 1);
+                        let targetDiv = lembaranDivs[indexDOM];
 
-                        let bukuDiv = document.getElementById('buku');
-                        if (modeRTL) {
-                            bukuDiv.insertBefore(divHalaman, bukuDiv.firstChild);
-                        } else {
-                            bukuDiv.appendChild(divHalaman);
-                        }
-                        
-                        if (i % 5 === 0 || i === akhir) {
-                            pageFlip.updateFromHtml(bukuDiv.querySelectorAll('.lembaran'));
-                            let totalHal = pageFlip.getPageCount();
-                            scrubberSlider.max = totalHal;
-                            scrubTotal.innerText = totalHal;
+                        if (targetDiv) {
+                            let clone = document.createElement('canvas');
+                            clone.width = canvas.width;
+                            clone.height = canvas.height;
+                            clone.getContext('2d').drawImage(canvas, 0, 0);
+                            
+                            targetDiv.innerHTML = ''; 
+                            targetDiv.appendChild(clone);
                         }
                     }
                 } catch(e) { console.log("Background load error hal", i, e); }
@@ -542,13 +543,14 @@
                 let pdf = await loadingTask.promise;
                 
                 let jumlahHalaman = pdf.numPages;
-                let scaleTarget = window.innerWidth <= 768 ? 1.0 : 1.5;
+                totalHalamanAktif = jumlahHalaman;
+                globalCanvases = new Array(jumlahHalaman).fill(null);
 
-                // LOGIKA SMART LOAD: Cek Bookmark Pengguna
+                let scaleTarget = window.innerWidth <= 768 ? 1.0 : 1.5;
                 let targetAwal = 20; 
                 let halamanTersimpan = localStorage.getItem('bookmark_elite_' + judul);
+                
                 if (halamanTersimpan) {
-                    // Jika pernah dibaca, muat halaman sampai ke batas bookmark + 2 halaman
                     targetAwal = Math.max(20, parseInt(halamanTersimpan) + 2);
                 }
                 let batasAwal = Math.min(targetAwal, jumlahHalaman);
@@ -566,7 +568,8 @@
                     canvas.height = viewport.height;
                     canvas.width = viewport.width;
                     await page.render({ canvasContext: ctx, viewport: viewport }).promise;
-                    globalCanvases.push(canvas);
+                    
+                    globalCanvases[i - 1] = canvas;
                 }
                 
                 if (sesiSekarang !== sessionLoadAktif) return;
@@ -576,7 +579,6 @@
                 initFlipbook();
                 triggerScrubber(); 
 
-                // Lanjutkan sisa buku di latar belakang
                 if (jumlahHalaman > batasAwal) {
                     muatLatarBelakang(pdf, batasAwal + 1, jumlahHalaman, sesiSekarang, scaleTarget);
                 }
@@ -616,11 +618,13 @@
                     let pdf = await loadingTask.promise;
                     
                     let jumlahHalaman = pdf.numPages;
-                    let scaleTarget = window.innerWidth <= 768 ? 1.0 : 1.5;
+                    totalHalamanAktif = jumlahHalaman;
+                    globalCanvases = new Array(jumlahHalaman).fill(null);
 
-                    // LOGIKA SMART LOAD MANUAL UPLOAD
+                    let scaleTarget = window.innerWidth <= 768 ? 1.0 : 1.5;
                     let targetAwal = 20; 
                     let halamanTersimpan = localStorage.getItem('bookmark_elite_' + namaFileAktif);
+                    
                     if (halamanTersimpan) {
                         targetAwal = Math.max(20, parseInt(halamanTersimpan) + 2);
                     }
@@ -638,7 +642,8 @@
                         canvas.height = viewport.height; 
                         canvas.width = viewport.width;
                         await page.render({ canvasContext: ctx, viewport: viewport }).promise;
-                        globalCanvases.push(canvas);
+                        
+                        globalCanvases[i - 1] = canvas;
                     }
 
                     if (sesiSekarang !== sessionLoadAktif) return;
@@ -739,14 +744,14 @@
             });
         });
 
-        document.getElementById('btn-ltr').addEventListener('click', () => { modeRTL = false; document.getElementById('btn-ltr').classList.add('aktif'); document.getElementById('btn-rtl').classList.remove('aktif'); if(globalCanvases.length) initFlipbook(); });
-        document.getElementById('btn-rtl').addEventListener('click', () => { modeRTL = true; document.getElementById('btn-rtl').classList.add('aktif'); document.getElementById('btn-ltr').classList.remove('aktif'); if(globalCanvases.length) initFlipbook(); });
+        document.getElementById('btn-ltr').addEventListener('click', () => { modeRTL = false; document.getElementById('btn-ltr').classList.add('aktif'); document.getElementById('btn-rtl').classList.remove('aktif'); if(totalHalamanAktif > 0) initFlipbook(); });
+        document.getElementById('btn-rtl').addEventListener('click', () => { modeRTL = true; document.getElementById('btn-rtl').classList.add('aktif'); document.getElementById('btn-ltr').classList.remove('aktif'); if(totalHalamanAktif > 0) initFlipbook(); });
 
         document.getElementById('btn-page-mode').addEventListener('click', () => {
             modeHalaman = modeHalaman === 1 ? 2 : 1;
             document.getElementById('icon-page-1').style.display = modeHalaman === 1 ? 'block' : 'none';
             document.getElementById('icon-page-2').style.display = modeHalaman === 2 ? 'block' : 'none';
-            if(globalCanvases.length) initFlipbook();
+            if(totalHalamanAktif > 0) initFlipbook();
         });
 
         // --- INIT FLIPBOOK ENGINE ---
@@ -760,15 +765,29 @@
             bukuContainer.innerHTML = '<div id="buku"></div>';
             let bukuDiv = document.getElementById('buku');
 
-            if (globalCanvases.length === 0) return; 
+            if (totalHalamanAktif === 0) return; 
 
             let renderList = [];
-            globalCanvases.forEach(originalCanvas => {
+            
+            // Membangun SELURUH kerangka halaman sekaligus sejak awal
+            for (let i = 0; i < totalHalamanAktif; i++) {
                 let divHalaman = document.createElement('div');
                 divHalaman.className = 'lembaran';
-                divHalaman.appendChild(originalCanvas); 
+                
+                if (globalCanvases[i] !== null) {
+                    let originalCanvas = globalCanvases[i];
+                    let clone = document.createElement('canvas');
+                    clone.width = originalCanvas.width;
+                    clone.height = originalCanvas.height;
+                    clone.getContext('2d').drawImage(originalCanvas, 0, 0);
+                    divHalaman.appendChild(clone);
+                } else {
+                    // Placeholder untuk halaman yang sedang diproses di belakang layar
+                    divHalaman.innerHTML = '<div class="page-loading"><div class="fallback-spinner"></div></div>';
+                }
+                
                 renderList.push(divHalaman);
-            });
+            }
 
             if (modeRTL) renderList.reverse();
             renderList.forEach(hal => bukuDiv.appendChild(hal));
@@ -812,7 +831,6 @@
                     if (halamanTersimpan !== null) {
                         let targetHal = parseInt(halamanTersimpan);
                         setTimeout(() => {
-                            // Cek apakah halaman yang di-bookmark sudah termuat
                             if(targetHal < pageFlip.getPageCount()) {
                                 pageFlip.turnToPage(targetHal);
                                 scrubberSlider.value = targetHal + 1;
