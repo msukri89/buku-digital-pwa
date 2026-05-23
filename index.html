@@ -1061,7 +1061,7 @@
 
         async function sendAiMessage() {
     let text = aiInput.value.trim();
-    if(!text) return;
+    if (!text) return;
     
     // Balon Chat User
     let userDiv = document.createElement('div');
@@ -1085,7 +1085,7 @@
             contents: [{
                 parts: [
                     { text: `Jawab pertanyaan ini berdasarkan gambar halaman buku ini: "${text}"` },
-                    { inlineData: { mimeType: "image/jpeg", data: base64Image } } // PERBAIKAN DI SINI
+                    { inlineData: { mimeType: "image/jpeg", data: base64Image } }
                 ]
             }]
         };
@@ -1099,7 +1099,6 @@
         let data = await response.json();
         
         if (!response.ok) {
-            // Ini akan memberitahu Anda jika API Key salah atau masalah lainnya
             throw new Error(data.error ? data.error.message : "Gagal terhubung ke Gemini");
         }
 
@@ -1107,11 +1106,18 @@
         loadingDiv.innerHTML = marked.parse(aiResponseText);
         aiChatArea.scrollTop = aiChatArea.scrollHeight;
 
+        // Perbesar laci otomatis jika balasannya panjang
+        if (aiResponseText.length > 200 && aiDrawer.classList.contains('show-half')) {
+            aiDrawer.classList.remove('show-half');
+            aiDrawer.classList.add('show-full');
+        }
+
     } catch (err) {
         console.error(err);
         loadingDiv.innerHTML = `<i>Error: ${err.message}</i>`;
     }
-        }
+}
+
 
                 // Perbesar laci otomatis jika balasannya panjang
                 if (aiResponseText.length > 200 && aiDrawer.classList.contains('show-half')) {
