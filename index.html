@@ -770,8 +770,23 @@
             e.target.value = ''; 
         }
 
-        document.getElementById('pdf-upload').addEventListener('change', handlePdfUpload);
+        const uploadElement = document.getElementById('pdf-upload');
+if (uploadElement) {
+    uploadElement.addEventListener('change', handlePdfUpload);
+}
         document.getElementById('pdf-upload-home').addEventListener('change', handlePdfUpload);
+        // ... (cari bagian di bawah fungsi handlePdfUpload)
+
+        // Perbaikan: Gunakan pengecekan elemen agar tidak error jika elemen tidak ditemukan
+        const btnUploadHome = document.getElementById('pdf-upload-home');
+        if (btnUploadHome) {
+            btnUploadHome.addEventListener('change', handlePdfUpload);
+        }
+
+        const btnUploadGlobal = document.getElementById('pdf-upload');
+        if (btnUploadGlobal) {
+            btnUploadGlobal.addEventListener('change', handlePdfUpload);
+        }
 
         // --- LOGIKA SCRUBBER ---
         function triggerScrubber() {
