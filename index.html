@@ -16,21 +16,49 @@
         * { box-sizing: border-box; }
         body { margin: 0; background-color: #f5f5f7; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; height: 100vh; overflow: hidden; -webkit-tap-highlight-color: transparent; }
 
-        /* --- LOADER GEMINI 3 DOTS (MENGANALISIS) --- */
+        /* --- LOADER LOGO SHIMMER SKELETON --- */
         .loader-overlay { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(255, 255, 255, 0.7); backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 999; transition: opacity 0.4s ease; }
         .loader-overlay.hide { opacity: 0; pointer-events: none; }
         
-        .gemini-dots { display: flex; gap: 6px; margin-bottom: 15px; align-items: center; justify-content: center; height: 24px; }
-        .gemini-dots span { width: 10px; height: 10px; background-color: #1d1d1f; border-radius: 50%; animation: geminiBlink 1.4s infinite both; }
-        .gemini-dots .dot-1 { animation-delay: -0.32s; }
-        .gemini-dots .dot-2 { animation-delay: -0.16s; }
-        .gemini-dots .dot-3 { animation-delay: 0s; }
-        
-        @keyframes geminiBlink {
-            0%, 80%, 100% { opacity: 0.3; transform: scale(0.7); }
-            40% { opacity: 1; transform: scale(1.1); }
+        .logo-shimmer-wrapper {
+            position: relative;
+            display: inline-block;
+            margin-bottom: 20px;
+            border-radius: 12px;
+            overflow: hidden; /* Mengunci efek cahaya agar tidak bocor dari area logo */
+            background: rgba(0,0,0,0.03); /* Dasar skeleton transparan */
         }
-        .loader-text { font-size: 16px; font-weight: 500; color: #1d1d1f; letter-spacing: 0.3px; }
+
+        .logo-loader { 
+            width: 90px; /* Ukuran lebar logo Anda */
+            height: auto; 
+            display: block;
+            filter: drop-shadow(0 8px 15px rgba(0,0,0,0.15));
+        }
+
+        /* Efek sapuan cahaya miring (Shimmer/Skeleton) */
+        .logo-shimmer-wrapper::after {
+            content: "";
+            position: absolute;
+            top: 0; left: -150%;
+            width: 50%; height: 100%;
+            background: linear-gradient(to right, transparent, rgba(255, 255, 255, 0.9), transparent);
+            transform: skewX(-25deg);
+            animation: shimmerSweep 1.6s infinite cubic-bezier(0.4, 0, 0.2, 1);
+            pointer-events: none;
+        }
+
+        @keyframes shimmerSweep {
+            0% { left: -150%; }
+            100% { left: 250%; }
+        }
+        
+        /* Fallback Spinner jika logo gagal dimuat */
+        .fallback-spinner { width: 45px; height: 45px; border: 4px solid rgba(0,0,0,0.1); border-left-color: #1d1d1f; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 20px; }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+
+        .loader-text { font-size: 16px; font-weight: 500; color: #1d1d1f; letter-spacing: 0.3px; text-align: center; }
+        .loader-subtext { font-size: 12px; font-weight: 400; color: #666; margin-top: 5px; text-align: center; }
 
         /* --- LAYAR AWAL (HOME SCREEN) --- */
         .home-screen { position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #f5f5f7; z-index: 20; transition: opacity 0.4s ease; opacity: 1; gap: 15px; }
@@ -249,12 +277,12 @@
     </div>
 
     <div id="loader" class="loader-overlay hide">
-        <div class="gemini-dots">
-            <span class="dot-1"></span>
-            <span class="dot-2"></span>
-            <span class="dot-3"></span>
+        <div class="logo-shimmer-wrapper">
+            <img src="logo.png" alt="Loading Logo" class="logo-loader" onerror="this.style.display='none'; document.getElementById('fallback-spinner').style.display='block';">
         </div>
+        <div id="fallback-spinner" class="fallback-spinner" style="display: none;"></div>
         <div class="loader-text" id="loader-text">Memproses Dokumen...</div>
+        <div class="loader-subtext" id="loader-subtext"></div>
     </div>
 
     <audio id="suara-kertas" src="suara1.mp3" preload="auto"></audio>
@@ -281,6 +309,7 @@
         const menuContainer = document.getElementById('menu-container');
         const loader = document.getElementById('loader');
         const loaderText = document.getElementById('loader-text');
+        const loaderSubtext = document.getElementById('loader-subtext');
         const bookContainer = document.getElementById('book-container');
         const searchInput = document.getElementById('search-input');
         const pageScrubber = document.getElementById('page-scrubber');
@@ -438,18 +467,60 @@
             } catch (error) { console.log("Gagal memuat rak buku: ", error); }
         }
 
+        // --- BACKGROUND RENDER LOADER (SMART LAZY LOAD) ---
+        async function muatLatarBelakang(pdf, mulai, akhir, sesi, scaleTarget) {
+            for (let i = mulai; i <= akhir; i++) {
+                if (sesi !== sessionLoadAktif) return;
+                
+                // Jeda 80ms antar halaman agar UI tidak macet saat pengguna sedang membaca
+                await new Promise(r => setTimeout(r, 80)); 
+                
+                try {
+                    let page = await pdf.getPage(i);
+                    let viewport = page.getViewport({ scale: scaleTarget }); 
+                    let canvas = document.createElement('canvas');
+                    let ctx = canvas.getContext('2d');
+                    canvas.height = viewport.height; 
+                    canvas.width = viewport.width;
+                    await page.render({ canvasContext: ctx, viewport: viewport }).promise;
+                    
+                    globalCanvases.push(canvas);
+
+                    // Update flipbook tanpa flicker (setiap 5 halaman atau di halaman terakhir)
+                    if (pageFlip && document.getElementById('buku')) {
+                        let divHalaman = document.createElement('div');
+                        divHalaman.className = 'lembaran';
+                        divHalaman.appendChild(canvas);
+
+                        let bukuDiv = document.getElementById('buku');
+                        if (modeRTL) {
+                            bukuDiv.insertBefore(divHalaman, bukuDiv.firstChild);
+                        } else {
+                            bukuDiv.appendChild(divHalaman);
+                        }
+                        
+                        if (i % 5 === 0 || i === akhir) {
+                            pageFlip.updateFromHtml(bukuDiv.querySelectorAll('.lembaran'));
+                            let totalHal = pageFlip.getPageCount();
+                            scrubberSlider.max = totalHal;
+                            scrubTotal.innerText = totalHal;
+                        }
+                    }
+                } catch(e) { console.log("Background load error hal", i, e); }
+            }
+        }
+
         // --- FUNGSI BUKA PDF DARI DATABASE ---
         async function bukaBukuDariURL(url_pdf, judul) {
-            // 1. Lakukan navigasi dan bersihkan data lama TERLEBIH DAHULU
             navigateTo('buku');
             clearBookData(); 
             namaFileAktif = judul; 
-
-            // 2. BARU catat sesi sekarang agar tidak bentrok
             sessionLoadAktif++;
             let sesiSekarang = sessionLoadAktif;
 
+            judul = judul || "Buku";
             loaderText.innerText = "Menganalisis " + judul + "...";
+            loaderSubtext.innerText = "";
             loader.classList.remove('hide');
             zoomSlider.value = 1; zoomWrapper.style.transform = `scale(1)`;
 
@@ -460,9 +531,7 @@
                     if (sesiSekarang !== sessionLoadAktif) return; 
                     loaderText.innerText = "Mengunduh file...";
                     let response = await fetch(url_pdf);
-                    
                     if (!response.ok) throw new Error("Gagal mengunduh: " + response.statusText);
-                    
                     pdfData = await response.arrayBuffer();
                     await simpanKeDatabase(url_pdf, pdfData); 
                 }
@@ -475,9 +544,21 @@
                 let jumlahHalaman = pdf.numPages;
                 let scaleTarget = window.innerWidth <= 768 ? 1.0 : 1.5;
 
-                for (let i = 1; i <= jumlahHalaman; i++) {
+                // LOGIKA SMART LOAD: Cek Bookmark Pengguna
+                let targetAwal = 20; 
+                let halamanTersimpan = localStorage.getItem('bookmark_elite_' + judul);
+                if (halamanTersimpan) {
+                    // Jika pernah dibaca, muat halaman sampai ke batas bookmark + 2 halaman
+                    targetAwal = Math.max(20, parseInt(halamanTersimpan) + 2);
+                }
+                let batasAwal = Math.min(targetAwal, jumlahHalaman);
+
+                loaderSubtext.innerText = `Menyiapkan ${batasAwal} halaman pertama...`;
+
+                for (let i = 1; i <= batasAwal; i++) {
                     if (sesiSekarang !== sessionLoadAktif) return;
-                    loaderText.innerText = `Merangkai Halaman ${i} dari ${jumlahHalaman}...`;
+                    loaderText.innerText = `Memproses Bagian Awal (${i}/${batasAwal})`;
+                    
                     let page = await pdf.getPage(i);
                     let viewport = page.getViewport({ scale: scaleTarget }); 
                     let canvas = document.createElement('canvas');
@@ -489,10 +570,16 @@
                 }
                 
                 if (sesiSekarang !== sessionLoadAktif) return;
+                
                 loader.classList.add('hide'); 
                 dock.classList.remove('collapsed');
                 initFlipbook();
                 triggerScrubber(); 
+
+                // Lanjutkan sisa buku di latar belakang
+                if (jumlahHalaman > batasAwal) {
+                    muatLatarBelakang(pdf, batasAwal + 1, jumlahHalaman, sesiSekarang, scaleTarget);
+                }
 
             } catch (err) {
                 console.error(err);
@@ -509,16 +596,14 @@
             let file = e.target.files[0];
             if(!file) return;
             
-            // Pindahkan navigasi & pembersihan ke atas
             navigateTo('buku');
             clearBookData();
             namaFileAktif = file.name; 
-            
-            // Catat sesi setelah data dibersihkan
             sessionLoadAktif++;
             let sesiSekarang = sessionLoadAktif;
 
             loaderText.innerText = "Menganalisis Dokumen...";
+            loaderSubtext.innerText = "";
             loader.classList.remove('hide'); 
             zoomSlider.value = 1; zoomWrapper.style.transform = `scale(1)`;
             
@@ -527,16 +612,25 @@
                 try {
                     if (sesiSekarang !== sessionLoadAktif) return;
                     let typedarray = new Uint8Array(this.result);
-                    
                     let loadingTask = pdfjsLib.getDocument({ data: typedarray });
                     let pdf = await loadingTask.promise;
                     
                     let jumlahHalaman = pdf.numPages;
                     let scaleTarget = window.innerWidth <= 768 ? 1.0 : 1.5;
 
-                    for (let i = 1; i <= jumlahHalaman; i++) {
+                    // LOGIKA SMART LOAD MANUAL UPLOAD
+                    let targetAwal = 20; 
+                    let halamanTersimpan = localStorage.getItem('bookmark_elite_' + namaFileAktif);
+                    if (halamanTersimpan) {
+                        targetAwal = Math.max(20, parseInt(halamanTersimpan) + 2);
+                    }
+                    let batasAwal = Math.min(targetAwal, jumlahHalaman);
+
+                    loaderSubtext.innerText = `Menyiapkan ${batasAwal} halaman pertama...`;
+
+                    for (let i = 1; i <= batasAwal; i++) {
                         if (sesiSekarang !== sessionLoadAktif) return;
-                        loaderText.innerText = `Merangkai Halaman ${i} dari ${jumlahHalaman}...`;
+                        loaderText.innerText = `Memproses Bagian Awal (${i}/${batasAwal})`;
                         let page = await pdf.getPage(i);
                         let viewport = page.getViewport({ scale: scaleTarget }); 
                         let canvas = document.createElement('canvas');
@@ -552,6 +646,11 @@
                     dock.classList.remove('collapsed');
                     initFlipbook();
                     triggerScrubber();
+
+                    if (jumlahHalaman > batasAwal) {
+                        muatLatarBelakang(pdf, batasAwal + 1, jumlahHalaman, sesiSekarang, scaleTarget);
+                    }
+
                 } catch (err) {
                     console.error("Kesalahan membaca file lokal:", err);
                     alert("Gagal membaca dokumen. Dokumen PDF rusak atau terlalu berat untuk HP ini.");
@@ -713,9 +812,12 @@
                     if (halamanTersimpan !== null) {
                         let targetHal = parseInt(halamanTersimpan);
                         setTimeout(() => {
-                            pageFlip.turnToPage(targetHal);
-                            scrubberSlider.value = targetHal + 1;
-                            scrubCurrent.innerText = targetHal + 1;
+                            // Cek apakah halaman yang di-bookmark sudah termuat
+                            if(targetHal < pageFlip.getPageCount()) {
+                                pageFlip.turnToPage(targetHal);
+                                scrubberSlider.value = targetHal + 1;
+                                scrubCurrent.innerText = targetHal + 1;
+                            }
                         }, 400);
                     }
                 }
