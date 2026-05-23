@@ -22,7 +22,6 @@
         body.dark-mode .home-screen { background-color: #121212; }
         body.dark-mode .hint-text { color: #666; }
         body.dark-mode .btn-upload-local { background: #1e1e1e; color: #fff; border-color: #333; }
-        /* Filter ajaib untuk merubah lembaran PDF putih menjadi hitam tapi gambar tetap normal */
         body.dark-mode .lembaran img { filter: invert(0.88) hue-rotate(180deg) contrast(1.1); }
         body.dark-mode .page-loading { background: #1e1e1e; }
         body.dark-mode .fallback-spinner { border-color: rgba(255,255,255,0.1); border-left-color: #fff; }
@@ -108,52 +107,35 @@
         .lembaran { background-color: #fff; overflow: hidden; display: flex; justify-content: center; align-items: center; }
         .lembaran canvas, .lembaran img { max-width: 100%; max-height: 100%; object-fit: contain; }
 
-        /* --- MENU KONTROL DOCK (DIPERBAIKI) --- */
-.menu-container { 
-    position: fixed; z-index: 100; display: flex; padding: 6px; 
-    background: rgba(255, 255, 255, 0.75); backdrop-filter: blur(20px); 
-    border-radius: 30px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08); 
-    transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
-    max-width: 90vw; /* Tidak boleh melebihi layar */
-}
-/* Scroll horizontal jika tombol lebih lebar dari layar */
-.dock { 
-    display: flex; gap: 4px; overflow-x: auto; scroll-behavior: smooth; 
-    max-width: 100%; white-space: nowrap; -ms-overflow-style: none; scrollbar-width: none;
-}
-.dock::-webkit-scrollbar { display: none; }
+        /* --- MENU KONTROL DOCK (DIPERBAIKI SECARA KESELURUHAN) --- */
+        .menu-container { 
+            position: fixed; z-index: 100; display: flex; padding: 6px; 
+            background: rgba(255, 255, 255, 0.75); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            border-radius: 30px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08); 
+            transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        body.dark-mode .menu-container { background: rgba(30, 30, 30, 0.75); }
 
-.icon-btn { 
-    border: none; background: transparent; color: #444; cursor: pointer; 
-    min-width: 36px; height: 36px; border-radius: 50%; display: flex; 
-    justify-content: center; align-items: center; transition: 0.3s;
-}
-
-@media (orientation: landscape) {
-    .menu-container { top: 15px; left: 15px; flex-direction: column; align-items: center; }
-    .dock { flex-direction: column; overflow-y: auto; overflow-x: hidden; max-height: 70vh; }
-    .menu-divider { width: 20px; height: 1px; margin: 4px 0; }
-}
-@media (orientation: portrait) {
-    .menu-container { bottom: 20px; left: 50%; transform: translateX(-50%); flex-direction: row; }
-}
-        .menu-container.hide { transform: translateY(100px); opacity: 0; pointer-events: none; }
-        .main-toggle { width: 38px; height: 38px; border-radius: 50%; border: none; background: rgba(255, 255, 255, 0.9); color: #1d1d1f; cursor: pointer; display: flex; justify-content: center; align-items: center; transition: 0.3s; z-index: 101; }
+        .main-toggle { width: 38px; height: 38px; border-radius: 50%; border: none; background: rgba(255, 255, 255, 0.9); color: #1d1d1f; cursor: pointer; display: flex; justify-content: center; align-items: center; transition: 0.3s; z-index: 101; flex-shrink: 0; }
         body.dark-mode .main-toggle { background: #444; color: #fff; }
         .main-toggle:active { transform: scale(0.85); }
         .main-toggle svg { width: 18px; height: 18px; }
-        .dock { display: flex; gap: 8px; opacity: 1; transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1); overflow: visible; }
-        .dock.collapsed { max-width: 0; opacity: 0; padding: 0; pointer-events: none; }
-        .icon-btn { border: none; background: transparent; color: #444; cursor: pointer; width: 34px; height: 34px; border-radius: 50%; display: flex; justify-content: center; align-items: center; transition: 0.3s ease; }
+        
+        .dock { 
+            display: flex; gap: 8px; opacity: 1; transition: all 0.6s cubic-bezier(0.34, 1.56, 0.64, 1); 
+            scrollbar-width: none; -ms-overflow-style: none; scroll-behavior: smooth;
+        }
+        .dock::-webkit-scrollbar { display: none; }
+        .dock.collapsed { opacity: 0; pointer-events: none; }
+
+        .icon-btn { border: none; background: transparent; color: #444; cursor: pointer; width: 34px; height: 34px; border-radius: 50%; display: flex; justify-content: center; align-items: center; transition: 0.3s ease; flex-shrink: 0; }
         body.dark-mode .icon-btn { color: #ccc; }
         .icon-btn svg { width: 18px; height: 18px; }
         .icon-btn:hover { background: rgba(0, 0, 0, 0.05); color: #000; }
         body.dark-mode .icon-btn:hover { background: rgba(255,255,255,0.1); color: #fff; }
         .icon-btn.aktif { background: rgba(0, 0, 0, 0.1); color: #000; }
         body.dark-mode .icon-btn.aktif { background: rgba(255,255,255,0.2); color: #fff; }
-        .menu-divider { width: 1px; height: 20px; background: rgba(0,0,0,0.15); margin: 0 4px; align-self: center; }
-        body.dark-mode .menu-divider { background: rgba(255,255,255,0.2); }
-
+        
         /* --- POPUP CONTAINER --- */
         .popup-container { position: absolute; background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.5); border-radius: 20px; padding: 8px 15px; box-shadow: 0 5px 20px rgba(0,0,0,0.1); opacity: 0; pointer-events: none; transform: scale(0.8); display: flex; align-items: center; z-index: 99; gap: 8px; transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
         body.dark-mode .popup-container { background: rgba(50, 50, 50, 0.9); border-color: rgba(255,255,255,0.1); }
@@ -166,7 +148,7 @@
         body.dark-mode .popup-btn.aktif { background: #fff; color: #121212; }
 
         /* --- PAGE SCRUBBER --- */
-        .page-scrubber { position: fixed; bottom: 85px; left: 50%; transform: translateX(-50%); background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); border: 1px solid rgba(255,255,255,0.5); border-radius: 30px; padding: 10px 20px; display: flex; align-items: center; gap: 12px; box-shadow: 0 8px 25px rgba(0,0,0,0.1); z-index: 95; transition: opacity 0.5s ease, transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1); }
+        .page-scrubber { position: fixed; left: 50%; transform: translateX(-50%); background: rgba(255, 255, 255, 0.85); backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px); border: 1px solid rgba(255,255,255,0.5); border-radius: 30px; padding: 10px 20px; display: flex; align-items: center; gap: 12px; box-shadow: 0 8px 25px rgba(0,0,0,0.1); z-index: 95; transition: opacity 0.5s ease, transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1); }
         body.dark-mode .page-scrubber { background: rgba(40,40,40,0.85); border-color: rgba(255,255,255,0.1); }
         .page-scrubber.hidden { opacity: 0; pointer-events: none; transform: translate(-50%, 25px); }
         .page-scrubber span { font-size: 13px; font-weight: 700; color: #444; min-width: 28px; text-align: center; }
@@ -180,24 +162,27 @@
         input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 5px; cursor: pointer; background: rgba(0,0,0,0.15); border-radius: 3px; }
         body.dark-mode input[type=range]::-webkit-slider-runnable-track { background: rgba(255,255,255,0.2); }
 
-        /* --- MEDIA QUERIES --- */
+        /* --- MEDIA QUERIES (DIGABUNGKAN & DIRAPIKAN) --- */
         @media (orientation: landscape) {
-            .menu-container { top: 20px; left: 20px; flex-direction: column; align-items: center; bottom: auto; transform: none; }
+            .menu-container { top: 20px; left: 20px; flex-direction: column; align-items: center; max-height: 90vh; }
             .menu-container.hide { transform: translateX(-100px); }
-            .dock { flex-direction: column; padding-top: 8px; transform-origin: top center; }
-            .dock.collapsed { max-height: 0; max-width: 100%; opacity: 0; padding-top: 0; transform: translateY(-15px) scale(0.8); }
-            .popup-container { left: 65px; top: 50%; transform: translateY(-50%) scale(0.8); }
+            .dock { flex-direction: column; overflow-y: auto; overflow-x: hidden; padding-top: 8px; transform-origin: top center; }
+            .dock.collapsed { max-height: 0; padding-top: 0; transform: translateY(-15px) scale(0.8); }
+            .popup-container { left: 70px; top: 50%; transform: translateY(-50%) scale(0.8); }
             .popup-container.show { transform: translateY(-50%) scale(1); }
             .page-scrubber { bottom: 25px; }
-            .menu-divider { width: 20px; height: 1px; margin: 4px 0; }
+            .menu-divider { width: 20px; height: 1px; margin: 4px 0; background: rgba(0,0,0,0.15); align-self: center; }
+            body.dark-mode .menu-divider { background: rgba(255,255,255,0.2); }
         }
         @media (orientation: portrait) {
-            .menu-container { bottom: 25px; left: 50%; transform: translateX(-50%); flex-direction: row-reverse; align-items: center; }
+            .menu-container { bottom: 25px; left: 50%; transform: translateX(-50%); flex-direction: row-reverse; align-items: center; max-width: 90vw; }
             .menu-container.hide { transform: translate(-50%, 100px); }
-            .dock { flex-direction: row; padding-right: 8px; transform-origin: right center; }
-            .dock.collapsed { max-width: 0; opacity: 0; padding-right: 0; transform: translateX(15px) scale(0.8); }
-            .popup-container { bottom: 60px; left: 50%; transform: translateX(-50%) scale(0.8); }
+            .dock { flex-direction: row; overflow-x: auto; overflow-y: hidden; padding-right: 8px; transform-origin: right center; }
+            .dock.collapsed { max-width: 0; padding-right: 0; transform: translateX(15px) scale(0.8); }
+            .popup-container { bottom: 70px; left: 50%; transform: translateX(-50%) scale(0.8); }
             .popup-container.show { transform: translateX(-50%) scale(1); }
+            .menu-divider { width: 1px; height: 20px; margin: 0 4px; background: rgba(0,0,0,0.15); align-self: center; }
+            body.dark-mode .menu-divider { background: rgba(255,255,255,0.2); }
         }
     </style>
 </head>
@@ -596,23 +581,21 @@
                     div.appendChild(titleSpan);
 
                     if (item.dest) {
-                        // Memproses Tujuan (Destination) halaman PDF
                         let explicitDest = item.dest;
                         if (typeof explicitDest === 'string') {
                             explicitDest = await pdfDoc.getDestination(explicitDest);
                         }
                         
                         if (explicitDest && explicitDest[0]) {
-                            // Dapatkan index halaman
                             pdfDoc.getPageIndex(explicitDest[0]).then(pageIndex => {
-                                let pageNum = pageIndex + 1; // 1-based untuk UI
+                                let pageNum = pageIndex + 1; 
                                 let pageSpan = document.createElement('span');
                                 pageSpan.className = 'toc-page';
                                 pageSpan.innerText = pageNum;
                                 div.appendChild(pageSpan);
 
                                 div.addEventListener('click', () => {
-                                    window.history.back(); // Tutup drawer
+                                    window.history.back();
                                     setTimeout(() => {
                                         if(pageFlip) {
                                             pageFlip.turnToPage(pageIndex);
@@ -621,7 +604,7 @@
                                         }
                                     }, 300);
                                 });
-                            }).catch(e => { /* Abaikan jika error resolving halaman */ });
+                            }).catch(e => { });
                         }
                     }
                     tocList.appendChild(div);
@@ -738,7 +721,7 @@
                 
                 initFlipbook();
                 triggerScrubber(); 
-                loadTableOfContents(); // Load TOC
+                loadTableOfContents(); 
 
             } catch (err) {
                 console.error(err);
@@ -784,7 +767,7 @@
                     
                     initFlipbook();
                     triggerScrubber();
-                    loadTableOfContents(); // Load TOC
+                    loadTableOfContents(); 
 
                 } catch (err) {
                     console.error("Kesalahan membaca file lokal:", err);
@@ -796,22 +779,10 @@
             e.target.value = ''; 
         }
 
-        const uploadElement = document.getElementById('pdf-upload');
-if (uploadElement) {
-    uploadElement.addEventListener('change', handlePdfUpload);
-}
-        document.getElementById('pdf-upload-home').addEventListener('change', handlePdfUpload);
-        // ... (cari bagian di bawah fungsi handlePdfUpload)
-
-        // Perbaikan: Gunakan pengecekan elemen agar tidak error jika elemen tidak ditemukan
+        // Perbaikan: Hanya memanggil event listener satu kali untuk menghindari parsing error pada upload lokal
         const btnUploadHome = document.getElementById('pdf-upload-home');
         if (btnUploadHome) {
             btnUploadHome.addEventListener('change', handlePdfUpload);
-        }
-
-        const btnUploadGlobal = document.getElementById('pdf-upload');
-        if (btnUploadGlobal) {
-            btnUploadGlobal.addEventListener('change', handlePdfUpload);
         }
 
         // --- LOGIKA SCRUBBER ---
@@ -905,6 +876,9 @@ if (uploadElement) {
                 try { pageFlip.destroy(); } catch (e) {}
                 pageFlip = null;
             }
+
+            // PERBAIKAN WAJIB: Membersihkan cache log halaman agar dipaksa render ulang saat berganti mode layar 1/2.
+            halDirender.clear();
 
             let bukuContainer = document.getElementById('book-container');
             bukuContainer.innerHTML = '<div id="buku"></div>';
