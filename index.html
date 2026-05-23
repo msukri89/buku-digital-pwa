@@ -1059,64 +1059,79 @@
             }
         }
 
-        async function sendAiMessage() {
-    let text = aiInput.value.trim();
-    if (!text) return;
-    
-    // Balon Chat User
-    let userDiv = document.createElement('div');
-    userDiv.className = 'chat-bubble user';
-    userDiv.innerText = text;
-    aiChatArea.appendChild(userDiv);
-    aiInput.value = '';
-    aiChatArea.scrollTop = aiChatArea.scrollHeight;
+                async function sendAiMessage() {
+            let text = aiInput.value.trim();
+            if (!text) return;
+            
+            // Balon Chat User
+            let userDiv = document.createElement('div');
+            userDiv.className = 'chat-bubble user';
+            userDiv.innerText = text;
+            aiChatArea.appendChild(userDiv);
+            aiInput.value = '';
+            aiChatArea.scrollTop = aiChatArea.scrollHeight;
 
-    // Balon Loading
-    let loadingDiv = document.createElement('div');
-    loadingDiv.className = 'chat-bubble ai';
-    loadingDiv.innerHTML = '<div class="ai-typing"><span></span><span></span><span></span></div>';
-    aiChatArea.appendChild(loadingDiv);
+            // Balon Loading
+            let loadingDiv = document.createElement('div');
+            loadingDiv.className = 'chat-bubble ai';
+            loadingDiv.innerHTML = '<div class="ai-typing"><span></span><span></span><span></span></div>';
+            aiChatArea.appendChild(loadingDiv);
 
-    try {
-        let currentPage = parseInt(document.getElementById('ai-context-page').innerText);
-        let base64Image = await getPageAsBase64(currentPage);
-        
-        let payload = {
-            contents: [{
-                parts: [
-                    { text: `Jawab pertanyaan ini berdasarkan gambar halaman buku ini: "${text}"` },
-                    { inlineData: { mimeType: "image/jpeg", data: base64Image } }
-                ]
-            }]
-        };
+            try {
+                // Mencegah error jika buku belum dibuka
+                if (!pdfDoc) {
+                    loadingDiv.innerHTML = "<i>Silakan buka sebuah buku terlebih dahulu sebelum bertanya kepada AI.</i>";
+                    return;
+                }
 
-        let response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
+                let currentPage = parseInt(document.getElementById('ai-context-page').innerText);
+                let base64Image = await getPageAsBase64(currentPage);
+                
+                if (!base64Image) {
+                    loadingDiv.innerHTML = "<i>Gagal membaca gambar halaman. Coba muat ulang buku.</i>";
+                    return;
+                }
 
-        let data = await response.json();
-        
-        if (!response.ok) {
-            throw new Error(data.error ? data.error.message : "Gagal terhubung ke Gemini");
+                // PROMPT ENGINEERING: Instruksi yang jauh lebih jelas dan pintar untuk AI
+                let systemPrompt = `Anda adalah asisten AI pintar untuk aplikasi pembaca e-book. Saya melampirkan sebuah gambar halaman buku. Tolong perhatikan baik-baik seluruh teks, grafik, atau konteks di dalam gambar tersebut.\n\nPerintah pengguna: "${text}"\n\nInstruksi khusus: Jika pengguna meminta merangkum, menjelaskan, atau menerjemahkan, pastikan Anda melakukannya HANYA berdasarkan konten yang ada di gambar halaman tersebut. Jika pengguna tidak menyebutkan bahasa tujuan terjemahan, otomatis terjemahkan ke Bahasa Indonesia. Jawablah dengan ramah dan rapi.`;
+
+                let payload = {
+                    contents: [{
+                        parts: [
+                            { text: systemPrompt },
+                            { inlineData: { mimeType: "image/jpeg", data: base64Image } }
+                        ]
+                    }]
+                };
+
+                let response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                let data = await response.json();
+                
+                if (!response.ok) {
+                    throw new Error(data.error ? data.error.message : "Gagal terhubung ke Gemini");
+                }
+
+                let aiResponseText = data.candidates[0].content.parts[0].text;
+                loadingDiv.innerHTML = marked.parse(aiResponseText);
+                aiChatArea.scrollTop = aiChatArea.scrollHeight;
+
+                // Perbesar laci otomatis jika balasannya panjang
+                if (aiResponseText.length > 200 && aiDrawer.classList.contains('show-half')) {
+                    aiDrawer.classList.remove('show-half');
+                    aiDrawer.classList.add('show-full');
+                }
+
+            } catch (err) {
+                console.error(err);
+                loadingDiv.innerHTML = `<i>Error: ${err.message}</i>`;
+            }
         }
 
-        let aiResponseText = data.candidates[0].content.parts[0].text;
-        loadingDiv.innerHTML = marked.parse(aiResponseText);
-        aiChatArea.scrollTop = aiChatArea.scrollHeight;
-
-        // Perbesar laci otomatis jika balasannya panjang
-        if (aiResponseText.length > 200 && aiDrawer.classList.contains('show-half')) {
-            aiDrawer.classList.remove('show-half');
-            aiDrawer.classList.add('show-full');
-        }
-
-    } catch (err) {
-        console.error(err);
-        loadingDiv.innerHTML = `<i>Error: ${err.message}</i>`;
-    }
-        }
         aiSendBtn.addEventListener('click', sendAiMessage);
         aiInput.addEventListener('keypress', (e) => { 
             if(e.key === 'Enter') sendAiMessage(); 
